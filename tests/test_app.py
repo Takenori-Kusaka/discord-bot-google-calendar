@@ -11,9 +11,11 @@ from dotenv import load_dotenv
 # app.py 内で .env を読み込んでいるが、テスト用に再度読み込む
 load_dotenv()
 
+
 # モック用の設定
 class MockResponse:
     """Mock response class for testing"""
+
     def __init__(self, text, prompt_feedback=None, safety_ratings=None):
         self.text = text
         self.prompt_feedback = prompt_feedback
@@ -22,6 +24,7 @@ class MockResponse:
 
     def __iter__(self):
         yield self
+
 
 @pytest.fixture
 def mocked_genai(monkeypatch):
@@ -46,8 +49,10 @@ def mocked_genai(monkeypatch):
         if "GOOGLE_API_KEY" in os.environ:
             del os.environ["GOOGLE_API_KEY"]
 
+
 class MockGenerativeModel:
     """Mock GenerativeModel class for testing"""
+
     def generate_content(self, prompt):
         """Generate mock content"""
         if "エラー" in prompt:
