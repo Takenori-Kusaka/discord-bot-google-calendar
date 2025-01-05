@@ -35,6 +35,13 @@ jobs:
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --no-interaction --no-root --with dev
 
-    - name: Lint with Pylint
+    - name: Install reviewdog
       run: |
-        poetry run pylint app.py
+        curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b $GITHUB_WORKSPACE/bin
+        echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
+
+    - name: Lint with Pylint and Reviewdog
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        poetry run pylint --output-format=text . | reviewdog -f=pylint -reporter=github-pr-review -fail-on-error
