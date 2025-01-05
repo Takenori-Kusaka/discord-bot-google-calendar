@@ -7,17 +7,17 @@ import os
 import sys
 import json
 import datetime
+import logging
+import argparse
 from typing import Any
 from dotenv import load_dotenv
 from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
 import google.generativeai as genai
-import logging
 
 # .env ファイルから環境変数を読み込む
 load_dotenv()
-
 
 # ロガーの設定
 logging.basicConfig(level=logging.DEBUG)
@@ -44,104 +44,163 @@ else:
     logger.error("Error: GOOGLE_SERVICE_ACCOUNT_FILE environment variable not set.")
     sys.exit(1)
 
-# Google Calendar API クライアントのビルド
-try:
-    service: Resource = build("calendar", "v3", credentials=CREDENTIALS)
-    logger.info("Successfully built the Calendar API client.")
-except (ConnectionError, google_exceptions.GoogleAPIError) as e:
-    logger.error(f"An error occurred while building the Calendar API client: {e}")
-    sys.exit(1)
 
-# 今日の日付を取得
-now = datetime.datetime.utcnow()
-today = now.date()
-logger.debug(f"Today's date: {today}")
+def get_calendar_service():
+    """Google Calendar APIのサービスオブジェクトを取得します。"""
+    try:
+        service: Resource = build("calendar", "v3", credentials=CREDENTIALS)
+        logger.info("Successfully built the Calendar API client.")
+        return service
+    except (ConnectionError, google_exceptions.GoogleAPIError) as e:
+        logger.error("An error occurred while building the Calendar API client: %s", e)
+        sys.exit(1)
 
-# 今週の月曜日の日付を計算
-this_week_monday = today - datetime.timedelta(days=today.weekday())
-logger.debug(f"This week's Monday: {this_week_monday}")
 
-# 今週の日曜日の日付を計算
-this_week_sunday = this_week_monday + datetime.timedelta(days=6)
-logger.debug(f"This week's Sunday: {this_week_sunday}")
-
-# 今週の予定を取得
-try:
-    events_result = (
-        service.events()
-        .list(
-            calendarId=GOOGLE_CALENDAR_ID,
-            timeMin=this_week_monday.isoformat() + "T00:00:00Z",
-            timeMax=this_week_sunday.isoformat() + "T23:59:59Z",
-            maxResults=10,
-            singleEvents=True,
-            orderBy="startTime",
+def fetch_events(service, start_date, end_date):
+    """指定された期間のGoogleカレンダーイベントを取得します。"""
+    try:
+        events_result = (
+            service.events()
+            .list(
+                calendarId=GOOGLE_CALENDAR_ID,
+                timeMin=start_date.isoformat() + "T00:00:00Z",
+                timeMax=end_date.isoformat() + "T23:59:59Z",
+                maxResults=100,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
         )
-        .execute()
-    )
-    events = events_result.get("items", [])
-    logger.info(f"Successfully fetched {len(events)} events from Google Calendar.")
-    logger.debug(f"Events: {events}")
-except (ConnectionError, google_exceptions.GoogleAPIError) as e:
-    logger.error(f"An error occurred while fetching events from Google Calendar: {e}")
-    events = []
+        events = events_result.get("items", [])
+        logger.info("Successfully fetched %d events from Google Calendar.", len(events))
+        logger.debug("Events: %s", events)
+        return events
+    except (ConnectionError, google_exceptions.GoogleAPIError) as e:
+        logger.error(
+            "An error occurred while fetching events from Google Calendar: %s", e
+        )
+        return []
 
-# 今日の予定をフィルタリング
-today_events = []
-for event in events:
-    start_str = event["start"].get("dateTime", event["start"].get("date"))
-    logger.debug(f"Event start time: {start_str}")
 
-    # 日付のみのイベントと終日イベントを考慮
-    if "T" in start_str:
-        event_date = datetime.datetime.strptime(start_str, "%Y-%m-%dT%H:%M:%S%z").date()
-    else:
-        event_date = datetime.datetime.strptime(start_str, "%Y-%m-%d").date()
+def filter_events(events, start_date, end_date):
+    """指定された期間のイベントをフィルタリングします。"""
+    filtered_events = []
+    for event in events:
+        start_str = event["start"].get("dateTime", event["start"].get("date"))
+        logger.debug("Event start time: %s", start_str)
 
-    if event_date == today:
-        today_events.append(event)
-        logger.debug(f"Added event for today: {event}")
+        if "T" in start_str:
+            event_date = datetime.datetime.strptime(
+                start_str, "%Y-%m-%dT%H:%M:%S%z"
+            ).date()
+        else:
+            event_date = datetime.datetime.strptime(start_str, "%Y-%m-%d").date()
 
-# 今日の予定を日本語で整形
-if not today_events:
-    TODAY_SCHEDULE_TEXT = "今日の予定はありません。"
-else:
-    TODAY_SCHEDULE_TEXT = "今日の予定は以下の通りです。\n"
-    for event in today_events:
+        if start_date <= event_date <= end_date:
+            filtered_events.append(event)
+            logger.debug("Added event for the period: %s", event)
+    return filtered_events
+
+
+def format_schedule_text(filtered_events, period_jp):
+    """フィルタリングされたイベントをテキスト形式にフォーマットします。"""
+    if not filtered_events:
+        return f"{period_jp}の予定はありません。"
+    schedule_text = f"{period_jp}の予定は以下の通りです。\n"
+    for event in filtered_events:
         start = event["start"].get("dateTime", event["start"].get("date"))
         end = event["end"].get("dateTime", event["end"].get("date"))
         summary = event["summary"]
 
-        # 時刻情報を整形
         if "T" in start:
             start_time = datetime.datetime.strptime(
                 start, "%Y-%m-%dT%H:%M:%S%z"
             ).strftime("%H:%M")
-            EVENT_END_TIME = (
+            event_end_time = (
                 datetime.datetime.strptime(end, "%Y-%m-%dT%H:%M:%S%z").strftime("%H:%M")
                 if "T" in end
                 else "終日"
             )
-
-            TODAY_SCHEDULE_TEXT += f"- {start_time}から{EVENT_END_TIME}：{summary}\n"
+            schedule_text += f"- {start_time}から{event_end_time}：{summary}\n"
         else:
-            TODAY_SCHEDULE_TEXT += f"- 終日：{summary}\n"
-    logger.debug(f"Today's schedule text: {TODAY_SCHEDULE_TEXT}")
+            schedule_text += f"- 終日：{summary}\n"
+    logger.debug("Schedule text: %s", schedule_text)
+    return schedule_text
 
-# Geminiで日本語の文章を生成
-model = genai.GenerativeModel("gemini-pro")
 
-PROMPT = f"""
-あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIです。
-以下の情報を元に、今日の予定をユーザーに通知してください。
-口調は丁寧に、簡潔かつ明瞭に伝えてください。
-必ず、以下の「今日の予定」から情報を取り出して文章を作成してください。
+def generate_response_text(schedule_text, period_jp):
+    """スケジュールテキストを元にAI応答テキストを生成します。"""
+    model = genai.GenerativeModel("gemini-pro")
 
-今日の予定：
-{TODAY_SCHEDULE_TEXT}
-"""
-try:
-    response = model.generate_content(PROMPT)
-    logger.info(response.text)
-except (ConnectionError, google_exceptions.GoogleAPIError) as e:
-    logger.error(f"An error occurred: {e}")
+    prompt = f"""
+    あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIです。
+    以下の情報を元に、{period_jp}の予定をユーザーに通知してください。
+    口調は丁寧に、簡潔かつ明瞭に伝えてください。
+    必ず、以下の「{period_jp}の予定」から情報を取り出して文章を作成してください。
+
+    {period_jp}の予定：
+    {schedule_text}
+    """
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except (ConnectionError, google_exceptions.GoogleAPIError) as e:
+        logger.error("An error occurred: %s", e)
+        return None
+
+
+def main():
+    """メイン関数。カレンダーサービスを取得し、イベントを取得して通知を生成します。"""
+    service = get_calendar_service()
+
+    # 今日の日付を取得
+    now = datetime.datetime.utcnow()
+    today = now.date()
+    logger.debug("Today's date: %s", today)
+
+    # 今週の月曜日の日付を計算
+    this_week_monday = today - datetime.timedelta(days=today.weekday())
+    logger.debug("This week's Monday: %s", this_week_monday)
+
+    # 今週の日曜日の日付を計算
+    this_week_sunday = this_week_monday + datetime.timedelta(days=6)
+    logger.debug("This week's Sunday: %s", this_week_sunday)
+
+    # コマンドライン引数の解析
+    parser = argparse.ArgumentParser(description="Generate schedule notifications.")
+    parser.add_argument(
+        "--period",
+        choices=["today", "week", "month"],
+        default="today",
+        help="Period of the schedule to generate.",
+    )
+    args = parser.parse_args()
+
+    # 期間に応じた日本語の期間名を設定
+    period_jp = {"today": "今日", "week": "今週", "month": "今月"}[args.period]
+
+    # 期間に応じた日付範囲を設定
+    if args.period == "today":
+        start_date = today
+        end_date = today
+    elif args.period == "week":
+        start_date = this_week_monday
+        end_date = this_week_sunday
+    elif args.period == "month":
+        start_date = today.replace(day=1)
+        next_month = start_date.replace(month=start_date.month % 12 + 1, day=1)
+        end_date = next_month - datetime.timedelta(days=1)
+
+    logger.debug("Start date: %s, End date: %s", start_date, end_date)
+
+    events = fetch_events(service, start_date, end_date)
+    filtered_events = filter_events(events, start_date, end_date)
+    schedule_text = format_schedule_text(filtered_events, period_jp)
+    response_text = generate_response_text(schedule_text, period_jp)
+
+    if response_text:
+        logger.info(response_text)
+
+
+if __name__ == "__main__":
+    main()
