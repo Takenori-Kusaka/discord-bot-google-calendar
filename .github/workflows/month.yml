@@ -2,7 +2,7 @@ name: Monthly sync with Google Calendar
 
 on:
   schedule:
-    - cron: '50 21 * * 0'
+    - cron: '0 0 1 * *'
 
 jobs:
   build:
