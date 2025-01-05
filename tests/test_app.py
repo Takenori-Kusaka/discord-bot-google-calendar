@@ -1,6 +1,7 @@
 """
 Tests for app.py
 """
+
 import os
 import pytest
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from dotenv import load_dotenv
 
 # app.py 内で .env を読み込んでいるが、テスト用に再度読み込む
 load_dotenv()
+
 
 # モック用の設定
 class MockResponse:
@@ -37,7 +39,7 @@ def mocked_genai(monkeypatch):
 
     yield
 
-    # Teardown: 
+    # Teardown:
     # 環境変数を元に戻す
     if api_key:
         os.environ["GOOGLE_API_KEY"] = api_key
