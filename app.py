@@ -9,13 +9,12 @@ import json
 import datetime
 import logging
 import argparse
-from typing import Any
-from dotenv import load_dotenv
 from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
 import google.generativeai as genai
 import discord
+from dotenv import load_dotenv
 
 # .env ファイルから環境変数を読み込む
 load_dotenv()
@@ -159,12 +158,14 @@ def generate_response_text(schedule_text, period_jp):
 
 
 class ScheduleBot(discord.Client):
+    """Discord bot class for sending schedule notifications."""
     def __init__(self, response_text: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.response_text = response_text
 
     async def on_ready(self):
-        logger.info("Logged in as {0.user}".format(self))
+        """Called when the bot is ready to start sending messages."""
+        logger.info("Logged in as %s", self.user)
         guild = self.get_guild(DISCORD_SERVER_ID)
         if guild:
             channel = guild.get_channel(DISCORD_CHANNEL_ID)
@@ -172,25 +173,23 @@ class ScheduleBot(discord.Client):
                 await channel.send(self.response_text)
         await self.close()
 
+def get_date_range(period: str, today: datetime.date) -> tuple[datetime.date, datetime.date]:
+    """期間に応じた日付範囲を返します。"""
+    if period == "today":
+        return today, today
+    elif period == "week":
+        this_week_monday = today - datetime.timedelta(days=today.weekday())
+        return this_week_monday, this_week_monday + datetime.timedelta(days=6)
+    else:  # month
+        start_date = today.replace(day=1)
+        return start_date, (start_date.replace(month=start_date.month % 12 + 1, day=1) -
+                          datetime.timedelta(days=1))
 
 def main():
     """メイン関数。カレンダーサービスを取得し、イベントを取得して通知を生成します。"""
     service = get_calendar_service()
+    today = datetime.datetime.utcnow().date()
 
-    # 今日の日付を取得
-    now = datetime.datetime.utcnow()
-    today = now.date()
-    logger.debug("Today's date: %s", today)
-
-    # 今週の月曜日の日付を計算
-    this_week_monday = today - datetime.timedelta(days=today.weekday())
-    logger.debug("This week's Monday: %s", this_week_monday)
-
-    # 今週の日曜日の日付を計算
-    this_week_sunday = this_week_monday + datetime.timedelta(days=6)
-    logger.debug("This week's Sunday: %s", this_week_sunday)
-
-    # コマンドライン引数の解析
     parser = argparse.ArgumentParser(description="Generate schedule notifications.")
     parser.add_argument(
         "--period",
@@ -200,20 +199,8 @@ def main():
     )
     args = parser.parse_args()
 
-    # 期間に応じた日本語の期間名を設定
     period_jp = {"today": "今日", "week": "今週", "month": "今月"}[args.period]
-
-    # 期間に応じた日付範囲を設定
-    if args.period == "today":
-        start_date = today
-        end_date = today
-    elif args.period == "week":
-        start_date = this_week_monday
-        end_date = this_week_sunday
-    elif args.period == "month":
-        start_date = today.replace(day=1)
-        next_month = start_date.replace(month=start_date.month % 12 + 1, day=1)
-        end_date = next_month - datetime.timedelta(days=1)
+    start_date, end_date = get_date_range(args.period, today)
 
     logger.debug("Start date: %s, End date: %s", start_date, end_date)
 
