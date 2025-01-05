@@ -2,6 +2,7 @@
 Discord bot application that utilizes Google Calendar API and Gemini AI
 for managing calendar events and providing intelligent responses.
 """
+
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
