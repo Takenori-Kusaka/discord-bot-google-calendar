@@ -48,4 +48,4 @@ jobs:
 
     - name: Run application
       run: |
-        poetry run python app.py
+        poetry run python app.py --period today
