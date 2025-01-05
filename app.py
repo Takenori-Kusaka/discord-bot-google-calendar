@@ -15,6 +15,7 @@ from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
 import google.generativeai as genai
+import discord
 
 # .env ファイルから環境変数を読み込む
 load_dotenv()
@@ -27,6 +28,9 @@ logger = logging.getLogger(__name__)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
 GOOGLE_CALENDAR_ID = os.getenv("GOOGLE_CALENDAR_ID")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+DISCORD_CHANNEL_ID = int(os.getenv("DISCORD_CHANNEL_ID"))
+DISCORD_SERVER_ID = int(os.getenv("DISCORD_SERVER_ID"))
 
 # Google AI Studioで発行したAPIキーを設定
 genai.configure(api_key=GOOGLE_API_KEY)
@@ -121,9 +125,13 @@ def format_schedule_text(filtered_events, period_jp):
                 if "T" in end
                 else "終日"
             )
-            schedule_text += f"- {start_date} {start_time}から{event_end_time}：{summary}\n"
+            schedule_text += (
+                f"- {start_date} {start_time}から{event_end_time}：{summary}\n"
+            )
         else:
-            start_date = datetime.datetime.strptime(start, "%Y-%m-%d").strftime("%Y-%m-%d")
+            start_date = datetime.datetime.strptime(start, "%Y-%m-%d").strftime(
+                "%Y-%m-%d"
+            )
             schedule_text += f"- {start_date} 終日：{summary}\n"
     logger.debug("Schedule text: %s", schedule_text)
     return schedule_text
@@ -137,7 +145,7 @@ def generate_response_text(schedule_text, period_jp):
     あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIです。
     以下の情報を元に、{period_jp}の予定をユーザーに通知してください。
     口調は丁寧に、簡潔かつ明瞭に伝えてください。
-    必ず、以下の「{period_jp}の予定」から情報を取り出して文章を作成してください。
+    必ず、以下の「{period_jp}の予定」から情報を取り出して箇条書きで文章を作成してください。
 
     {period_jp}の予定：
     {schedule_text}
@@ -148,6 +156,21 @@ def generate_response_text(schedule_text, period_jp):
     except (ConnectionError, google_exceptions.GoogleAPIError) as e:
         logger.error("An error occurred: %s", e)
         return None
+
+
+class ScheduleBot(discord.Client):
+    def __init__(self, response_text: str, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.response_text = response_text
+
+    async def on_ready(self):
+        logger.info("Logged in as {0.user}".format(self))
+        guild = self.get_guild(DISCORD_SERVER_ID)
+        if guild:
+            channel = guild.get_channel(DISCORD_CHANNEL_ID)
+            if channel:
+                await channel.send(self.response_text)
+        await self.close()
 
 
 def main():
@@ -201,6 +224,9 @@ def main():
 
     if response_text:
         logger.info(response_text)
+        intents = discord.Intents.default()
+        bot = ScheduleBot(response_text, intents=intents)
+        bot.run(DISCORD_TOKEN)
 
 
 if __name__ == "__main__":
