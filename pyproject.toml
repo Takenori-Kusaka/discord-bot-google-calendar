@@ -9,8 +9,5 @@ python = "^3.10"  # Pythonのバージョン
 google-generativeai = "^0.8.3"
 python-dotenv = "^1.0.1"
 
-[build-system]
-requires = [
-    "poetry-core",
-    "google-generativeai"
-]
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
