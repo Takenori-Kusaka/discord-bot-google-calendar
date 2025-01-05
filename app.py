@@ -121,9 +121,13 @@ def format_schedule_text(filtered_events, period_jp):
                 if "T" in end
                 else "終日"
             )
-            schedule_text += f"- {start_date} {start_time}から{event_end_time}：{summary}\n"
+            schedule_text += (
+                f"- {start_date} {start_time}から{event_end_time}：{summary}\n"
+            )
         else:
-            start_date = datetime.datetime.strptime(start, "%Y-%m-%d").strftime("%Y-%m-%d")
+            start_date = datetime.datetime.strptime(start, "%Y-%m-%d").strftime(
+                "%Y-%m-%d"
+            )
             schedule_text += f"- {start_date} 終日：{summary}\n"
     logger.debug("Schedule text: %s", schedule_text)
     return schedule_text
