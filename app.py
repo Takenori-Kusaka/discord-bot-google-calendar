@@ -31,11 +31,11 @@ try:
 
     # プロンプトに対するフィードバックを表示 (もしあれば)
     if response.prompt_feedback:
-      print(f"\nPrompt Feedback:\n{response.prompt_feedback}")
+        print(f"\nPrompt Feedback:\n{response.prompt_feedback}")
 
     # 安全性評価を表示 (もしあれば)
     if response.candidates and response.candidates[0].safety_ratings:
-      print(f"\nSafety Ratings:\n{response.candidates[0].safety_ratings}")
+        print(f"\nSafety Ratings:\n{response.candidates[0].safety_ratings}")
 
 except Exception as e:
     print(f"An error occurred: {e}")
