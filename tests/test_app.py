@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import datetime  # 追加
 
 # プロジェクトのルートディレクトリをパスに追加
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # app.py 内で .env を読み込んでいるが、テスト用に再度読み込む
 load_dotenv()
@@ -102,8 +102,16 @@ def test_filter_events():
 
 def test_format_schedule_text():
     filtered_events = [
-        {"start": {"dateTime": "2023-01-01T10:00:00+00:00"}, "summary": "Event 1", "end": {"dateTime": "2023-01-01T11:00:00+00:00"}},
-        {"start": {"dateTime": "2023-01-15T10:00:00+00:00"}, "summary": "Event 2", "end": {"dateTime": "2023-01-15T11:00:00+00:00"}},
+        {
+            "start": {"dateTime": "2023-01-01T10:00:00+00:00"},
+            "summary": "Event 1",
+            "end": {"dateTime": "2023-01-01T11:00:00+00:00"},
+        },
+        {
+            "start": {"dateTime": "2023-01-15T10:00:00+00:00"},
+            "summary": "Event 2",
+            "end": {"dateTime": "2023-01-15T11:00:00+00:00"},
+        },
     ]
     period_jp = "今月"
     schedule_text = format_schedule_text(filtered_events, period_jp)
