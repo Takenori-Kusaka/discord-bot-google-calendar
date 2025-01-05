@@ -3,17 +3,17 @@ name: Python CI/CD
 on:
   push:
     branches:
-      - main  # main ブランチへのプッシュ時に実行
+      - main
   pull_request:
     branches:
-      - main  # main ブランチへのプルリクエスト時に実行
+      - main
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # 最新の Ubuntu 環境で実行
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10"]  # 複数の Python バージョンでテスト
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
     - name: Checkout code
@@ -37,9 +37,14 @@ jobs:
         path: .venv
         key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
 
+    - name: Update lock file if needed
+      run: |
+        poetry lock --no-update
+      continue-on-error: true # エラーが出ても失敗にしない
+
     - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
       run: poetry install --no-interaction --no-root
+      if: steps.update-lock.outcome == 'failure' # ロックファイルの更新に成功したら実行しない
 
     - name: Check code formatting with Black
       run: |
@@ -56,7 +61,7 @@ jobs:
     - name: Set environment variables
       run: |
         echo "GOOGLE_API_KEY=${{ secrets.GOOGLE_API_KEY }}" >> $GITHUB_ENV
-        # echo "DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }}" >> $GITHUB_ENV
+        echo "DISCORD_BOT_TOKEN=${{ secrets.DISCORD_BOT_TOKEN }}" >> $GITHUB_ENV
 
     - name: Run application
       run: |
