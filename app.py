@@ -159,6 +159,7 @@ def generate_response_text(schedule_text, period_jp):
 
 class ScheduleBot(discord.Client):
     """Discord bot class for sending schedule notifications."""
+
     def __init__(self, response_text: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.response_text = response_text
@@ -173,7 +174,10 @@ class ScheduleBot(discord.Client):
                 await channel.send(self.response_text)
         await self.close()
 
-def get_date_range(period: str, today: datetime.date) -> tuple[datetime.date, datetime.date]:
+
+def get_date_range(
+    period: str, today: datetime.date
+) -> tuple[datetime.date, datetime.date]:
     """期間に応じた日付範囲を返します。"""
     if period == "today":
         return today, today
@@ -182,8 +186,11 @@ def get_date_range(period: str, today: datetime.date) -> tuple[datetime.date, da
         return this_week_monday, this_week_monday + datetime.timedelta(days=6)
     else:  # month
         start_date = today.replace(day=1)
-        return start_date, (start_date.replace(month=start_date.month % 12 + 1, day=1) -
-                          datetime.timedelta(days=1))
+        return start_date, (
+            start_date.replace(month=start_date.month % 12 + 1, day=1)
+            - datetime.timedelta(days=1)
+        )
+
 
 def main():
     """メイン関数。カレンダーサービスを取得し、イベントを取得して通知を生成します。"""
