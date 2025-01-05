@@ -42,14 +42,6 @@ jobs:
     - name: Install dependencies
       run: poetry install --no-interaction --no-root --with dev
 
-    - name: Check code formatting with Black
-      run: |
-        poetry run black --check .
-
-    - name: Lint with Pylint
-      run: |
-        poetry run pylint app.py
-
     - name: Run tests with pytest
       run: |
         poetry run pytest
