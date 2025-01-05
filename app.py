@@ -1,6 +1,11 @@
-import google.generativeai as genai
+"""
+Discord bot application that utilizes Google Calendar API and Gemini AI
+for managing calendar events and providing intelligent responses.
+"""
 import os
 from dotenv import load_dotenv
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
 # .env ファイルから環境変数を読み込む
 load_dotenv()
@@ -20,11 +25,16 @@ for m in genai.list_models():
 model = genai.GenerativeModel("gemini-pro")
 
 # プロンプトを設定
-prompt = "日本の首都はどこですか？"
+PROMPT = """
+You are an AI assistant that helps manage Google Calendar. \
+Please respond within 2000 characters. \
+If you detect a date/time in user input, suggest adding a calendar event. \
+Format your responses with simple markdown.
+"""
 
 # リクエストを送信してレスポンスを取得
 try:
-    response = model.generate_content(prompt)
+    response = model.generate_content(PROMPT)
 
     # レスポンスを表示
     print(f"\nResponse:\n{response.text}")
@@ -37,5 +47,5 @@ try:
     if response.candidates and response.candidates[0].safety_ratings:
         print(f"\nSafety Ratings:\n{response.candidates[0].safety_ratings}")
 
-except Exception as e:
+except (ConnectionError, google_exceptions.GoogleAPIError) as e:
     print(f"An error occurred: {e}")
