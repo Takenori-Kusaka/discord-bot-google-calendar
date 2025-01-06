@@ -49,4 +49,4 @@ jobs:
 
     - name: Run application
       run: |
-        poetry run python app.py --period week
+        poetry run python post_schedule.py --period week

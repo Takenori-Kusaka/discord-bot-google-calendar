@@ -1,8 +1,8 @@
-name: Daily sync with Google Calendar
+name: Create discord event from Google Calendar
 
 on:
   schedule:
-    - cron: '0 22 * * *'
+    - cron: '*/15 * * * *'
 
 jobs:
   build:
@@ -49,4 +49,4 @@ jobs:
 
     - name: Run application
       run: |
-        poetry run python post_schedule.py --period today
+        poetry run python create_event.py

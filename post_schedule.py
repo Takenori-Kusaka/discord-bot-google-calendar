@@ -195,7 +195,9 @@ def get_date_range(
 def main():
     """メイン関数。カレンダーサービスを取得し、イベントを取得して通知を生成します。"""
     service = get_calendar_service()
-    today = datetime.datetime.utcnow().date()
+    # UTCからJSTに変更
+    jst = datetime.timezone(datetime.timedelta(hours=9))
+    today = datetime.datetime.now(jst).date()
 
     parser = argparse.ArgumentParser(description="Generate schedule notifications.")
     parser.add_argument(
