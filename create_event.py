@@ -70,7 +70,7 @@ def fetch_events(service, start_date, end_date):
         )
         events = events_result.get("items", [])
         logger.info("Successfully fetched %d events from Google Calendar.", len(events))
-        #logger.debug("Events: %s", events)
+        # logger.debug("Events: %s", events)
         return events
     except (ConnectionError, google_exceptions.GoogleAPIError) as e:
         logger.error(
@@ -100,14 +100,13 @@ def is_same_event(discord_event, calendar_event, start_time, end_time):
     )
 
 
-
 class CreateEventsBot(discord.Client):
     """Discord bot class for sending schedule notifications."""
 
     def __init__(self, calendar_service, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.calendar_service = calendar_service
-    
+
     async def on_ready(self):
         """Discordのスケジュールイベントを作成します。"""
         logger.info("Logged in as %s", self.user)
@@ -120,8 +119,10 @@ class CreateEventsBot(discord.Client):
             # 1ヶ月分のイベントを取得（開始日を現在時刻に設定）
             start_date = now
             end_date = start_date + datetime.timedelta(days=30)
-            events = fetch_events(self.calendar_service, start_date.date(), end_date.date())
-            
+            events = fetch_events(
+                self.calendar_service, start_date.date(), end_date.date()
+            )
+
             # 既存のDiscordイベントを取得
             existing_events = await guild.fetch_scheduled_events()
             created_count = 0
@@ -130,28 +131,39 @@ class CreateEventsBot(discord.Client):
                 try:
                     # イベントデータの整形
                     event_data = {
-                        'name': event['summary'][:100],  # イベント名を100文字に制限
-                        'description': (event.get('description', '') or "No description")[:1000],  # 説明を1000文字に制限
-                        'location': event.get('location', '未設定'),  # locationが空の場合はデフォルト値
-                        'start': event['start'].get('dateTime', event['start'].get('date')),
-                        'end': event['end'].get('dateTime', event['end'].get('date'))
+                        "name": event["summary"][:100],  # イベント名を100文字に制限
+                        "description": (
+                            event.get("description", "") or "No description"
+                        )[
+                            :1000
+                        ],  # 説明を1000文字に制限
+                        "location": event.get(
+                            "location", "未設定"
+                        ),  # locationが空の場合はデフォルト値
+                        "start": event["start"].get(
+                            "dateTime", event["start"].get("date")
+                        ),
+                        "end": event["end"].get("dateTime", event["end"].get("date")),
                     }
 
                     # 終日イベントの処理
-                    if 'T' not in event_data['start']:
+                    if "T" not in event_data["start"]:
                         jst = datetime.timezone(datetime.timedelta(hours=9))
-                        start_date = datetime.datetime.strptime(event_data['start'], '%Y-%m-%d')
+                        start_date = datetime.datetime.strptime(
+                            event_data["start"], "%Y-%m-%d"
+                        )
                         start_time = start_date.replace(hour=6, tzinfo=jst)
                         end_time = start_date.replace(hour=21, tzinfo=jst)
                     else:
-                        start_time = datetime.datetime.fromisoformat(event_data['start'])
-                        end_time = datetime.datetime.fromisoformat(event_data['end'])
+                        start_time = datetime.datetime.fromisoformat(
+                            event_data["start"]
+                        )
+                        end_time = datetime.datetime.fromisoformat(event_data["end"])
 
                     # 過去のイベントをスキップ
                     if start_time < now:
                         logger.info(
-                            "Event '%s' is in the past, skipping...",
-                            event_data['name']
+                            "Event '%s' is in the past, skipping...", event_data["name"]
                         )
                         continue
 
@@ -164,33 +176,33 @@ class CreateEventsBot(discord.Client):
                     if is_duplicate:
                         logger.info(
                             "Event '%s' on %s already exists, skipping...",
-                            event_data['name'],
-                            start_time.date()
+                            event_data["name"],
+                            start_time.date(),
                         )
                         continue
 
                     # Discordイベントを作成
                     await guild.create_scheduled_event(
-                        name=event_data['name'],
-                        description=event_data['description'],
+                        name=event_data["name"],
+                        description=event_data["description"],
                         start_time=start_time,
                         end_time=end_time,
-                        location=event_data['location'],
+                        location=event_data["location"],
                         privacy_level=discord.PrivacyLevel.guild_only,
-                        entity_type=discord.EntityType.external
+                        entity_type=discord.EntityType.external,
                     )
                     created_count += 1
                     logger.info(
                         "Created Discord event: %s on %s",
-                        event_data['name'],
-                        start_time.date()
+                        event_data["name"],
+                        start_time.date(),
                     )
 
                 except (ValueError, KeyError) as e:
                     logger.error(
                         "Error creating event %s: %s",
-                        event.get('summary', 'Unknown'),
-                        str(e)
+                        event.get("summary", "Unknown"),
+                        str(e),
                     )
 
             await self.close()
@@ -200,6 +212,7 @@ class CreateEventsBot(discord.Client):
             logger.error("Failed to process events: %s", str(e))
             await self.close()
             return 0
+
 
 def main():
     """メイン関数"""
