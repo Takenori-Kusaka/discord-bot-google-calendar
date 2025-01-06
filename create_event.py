@@ -145,7 +145,9 @@ class CreateEventsBot(discord.Client):
                 # Googleカレンダーに存在するかチェック
                 exists_in_calendar = False
                 for calendar_event in calendar_events:
-                    if "T" not in calendar_event["start"].get("dateTime", calendar_event["start"].get("date")):
+                    if "T" not in calendar_event["start"].get(
+                        "dateTime", calendar_event["start"].get("date")
+                    ):
                         start_date = datetime.datetime.strptime(
                             calendar_event["start"].get("date"), "%Y-%m-%d"
                         )
@@ -159,7 +161,9 @@ class CreateEventsBot(discord.Client):
                             calendar_event["end"].get("dateTime")
                         )
 
-                    if is_same_event(discord_event, calendar_event, start_time, end_time):
+                    if is_same_event(
+                        discord_event, calendar_event, start_time, end_time
+                    ):
                         exists_in_calendar = True
                         break
 
@@ -247,7 +251,9 @@ class CreateEventsBot(discord.Client):
                         str(e),
                     )
 
-            logger.info(f"Created {created_count} events and deleted {deleted_count} events")
+            logger.info(
+                f"Created {created_count} events and deleted {deleted_count} events"
+            )
             await self.close()
             return created_count
 
