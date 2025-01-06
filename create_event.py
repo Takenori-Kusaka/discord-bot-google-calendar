@@ -100,6 +100,11 @@ def is_same_event(discord_event, calendar_event, start_time, end_time):
     )
 
 
+def is_future_event(discord_event, now):
+    """イベントが未来の日付かどうかをチェックします。"""
+    return discord_event.start_time > now
+
+
 class CreateEventsBot(discord.Client):
     """Discord bot class for sending schedule notifications."""
 
@@ -119,15 +124,52 @@ class CreateEventsBot(discord.Client):
             # 1ヶ月分のイベントを取得（開始日を現在時刻に設定）
             start_date = now
             end_date = start_date + datetime.timedelta(days=30)
-            events = fetch_events(
+            calendar_events = fetch_events(
                 self.calendar_service, start_date.date(), end_date.date()
             )
 
             # 既存のDiscordイベントを取得
             existing_events = await guild.fetch_scheduled_events()
             created_count = 0
+            deleted_count = 0
 
-            for event in events:
+            # 既存のDiscordイベントをチェックし、Googleカレンダーに存在しないものを削除
+            for discord_event in existing_events:
+                # 未来のイベントのみを処理
+                if not is_future_event(discord_event, now):
+                    await discord_event.delete()
+                    deleted_count += 1
+                    logger.info(f"Deleted past event: {discord_event.name}")
+                    continue
+
+                # Googleカレンダーに存在するかチェック
+                exists_in_calendar = False
+                for calendar_event in calendar_events:
+                    if "T" not in calendar_event["start"].get("dateTime", calendar_event["start"].get("date")):
+                        start_date = datetime.datetime.strptime(
+                            calendar_event["start"].get("date"), "%Y-%m-%d"
+                        )
+                        start_time = start_date.replace(hour=6, tzinfo=jst)
+                        end_time = start_date.replace(hour=21, tzinfo=jst)
+                    else:
+                        start_time = datetime.datetime.fromisoformat(
+                            calendar_event["start"].get("dateTime")
+                        )
+                        end_time = datetime.datetime.fromisoformat(
+                            calendar_event["end"].get("dateTime")
+                        )
+
+                    if is_same_event(discord_event, calendar_event, start_time, end_time):
+                        exists_in_calendar = True
+                        break
+
+                if not exists_in_calendar:
+                    await discord_event.delete()
+                    deleted_count += 1
+                    logger.info(f"Deleted event not in calendar: {discord_event.name}")
+
+            # 新しいイベントの作成（既存のコード）
+            for event in calendar_events:
                 try:
                     # イベントデータの整形
                     event_data = {
@@ -205,6 +247,7 @@ class CreateEventsBot(discord.Client):
                         str(e),
                     )
 
+            logger.info(f"Created {created_count} events and deleted {deleted_count} events")
             await self.close()
             return created_count
 
