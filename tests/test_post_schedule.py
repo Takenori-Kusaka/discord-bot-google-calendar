@@ -8,7 +8,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app import (
+from post_schedule import (
     get_calendar_service,
     fetch_events,
     filter_events,
