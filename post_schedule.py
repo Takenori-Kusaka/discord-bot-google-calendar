@@ -15,12 +15,13 @@ from googleapiclient.discovery import build, Resource
 import google.generativeai as genai
 import discord
 from dotenv import load_dotenv
+from weather import WeatherClient
 
 # .env ファイルから環境変数を読み込む
 load_dotenv()
 
 # ロガーの設定
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # 環境変数を取得
@@ -109,7 +110,7 @@ def format_schedule_text(filtered_events, period_jp):
     """フィルタリングされたイベントをテキスト形式にフォーマットします。"""
     if not filtered_events:
         return f"{period_jp}の予定はありません。"
-    schedule_text = f"{period_jp}の予定は以下の通りです。\n"
+    schedule_text = ""
     for event in filtered_events:
         start = event["start"].get("dateTime", event["start"].get("date"))
         end = event["end"].get("dateTime", event["end"].get("date"))
@@ -136,19 +137,79 @@ def format_schedule_text(filtered_events, period_jp):
     return schedule_text
 
 
-def generate_response_text(schedule_text, period_jp):
-    """スケジュールテキストを元にAI応答テキストを生成します。"""
+def generate_response_text(schedule_text, period_jp, weather_markdown):
+    """スケジュールテキストと天気情報を元にAI応答テキストを生成します。"""
     model = genai.GenerativeModel("gemini-pro")
 
-    prompt = f"""
-    あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIです。
-    以下の情報を元に、{period_jp}の予定をユーザーに通知してください。
-    口調は丁寧に、簡潔かつ明瞭に伝えてください。
-    必ず、以下の「{period_jp}の予定」から情報を取り出して箇条書きで文章を作成してください。
+    prompts = {
+        "今日": f"""
+    ## あなたの役割
+    あなたはGoogleカレンダーの情報と天気情報をわかりやすく伝えるアシスタントAIです。
+    以下の情報を元に、{period_jp}の予定と天気情報をユーザーに通知してください。
 
     {period_jp}の予定：
     {schedule_text}
-    """
+
+    {period_jp}の木津川市の天気情報：
+    {weather_markdown}
+
+    ## 通知するメッセージの設計方針
+
+    1. {period_jp}の予定を伝える
+    2. {period_jp}の予定から推測される一言を添える(どこどこへ外出する予定があるようですね、気を付けて行ってきてください、など)
+    3. {period_jp}の全体的な天気を伝える(一日を通して晴れ、や、午後から雨など)
+    4. {period_jp}の全体的な気温を伝える(最高気温、最低気温)
+    5. {period_jp}の天気から推測される一言を添える({period_jp}は暑いので、水分補給を忘れずに、など)
+
+    全体を通して絵文字で装飾してください
+    体感温度基準として0-10℃を寒い、11-20℃を涼しい、21-30℃を快適、31℃以上を暑いとしてください
+    
+    ```
+    """,
+        "今週": f"""
+    ## あなたの役割
+    あなたはGoogleカレンダーの情報と天気情報をわかりやすく伝えるアシスタントAIです。
+    以下の情報を元に、{period_jp}の予定と天気情報をユーザーに通知してください。
+
+    {period_jp}の予定：
+    {schedule_text}
+
+    {period_jp}の木津川市の天気情報：
+    {weather_markdown}
+
+    ## 通知するメッセージの設計方針
+
+    1. {period_jp}の予定を伝える
+    2. {period_jp}の予定から推測される一言を添える(どこどこへ外出する予定があるようですね、気を付けて行ってきてください、など)
+    3. {period_jp}の全体的な天気を伝える(一週間を通して晴れ、や、雨が多いなど)
+    4. {period_jp}の全体的な気温を伝える(最高気温、最低気温)
+    5. {period_jp}の天気から推測される一言を添える({period_jp}は暑いので、水分補給を忘れずに、など)
+
+    全体を通して絵文字で装飾してください
+    体感温度基準として0-10℃を寒い、11-20℃を涼しい、21-30℃を快適、31℃以上を暑いとしてください
+    
+    ```
+    """,
+        "今月": f"""
+    ## あなたの役割
+    あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIです。
+    以下の情報を元に、{period_jp}の予定をユーザーに通知してください。
+
+    {period_jp}の予定：
+    {schedule_text}
+
+    ## 通知するメッセージの設計方針
+
+    1. {period_jp}の予定を伝える
+    2. {period_jp}の予定から推測される一言を添える(どこどこへ外出する予定があるようですね、気を付けて行ってきてください、など)
+
+    全体を通して絵文字で装飾してください
+    
+    ```
+    """,
+    }
+    prompt = prompts[period_jp]
+    logger.debug("Prompt: %s", prompt)
     try:
         response = model.generate_content(prompt)
         return response.text
@@ -216,7 +277,12 @@ def main():
     events = fetch_events(service, start_date, end_date)
     filtered_events = filter_events(events, start_date, end_date)
     schedule_text = format_schedule_text(filtered_events, period_jp)
-    response_text = generate_response_text(schedule_text, period_jp)
+
+    # 天気情報の取得
+    weather_client = WeatherClient(latitude=34.712, longitude=135.844)
+    weather_markdown = weather_client.get_weather_markdown(args.period)
+
+    response_text = generate_response_text(schedule_text, period_jp, weather_markdown)
 
     if response_text:
         logger.info(response_text)
