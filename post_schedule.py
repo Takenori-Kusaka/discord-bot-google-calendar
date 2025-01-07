@@ -21,7 +21,9 @@ from weather import WeatherClient
 load_dotenv()
 
 # ロガーの設定
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # 環境変数を取得
