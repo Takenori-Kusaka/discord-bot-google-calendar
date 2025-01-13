@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 client = openai.OpenAI(
     api_key=os.getenv("LITE_LLM_API_KEY"),
-    base_url=os.getenv("LITE_LLM_ENDPOINT_URL")  # 0.0.0.0 を localhost に変更
+    base_url=os.getenv("LITE_LLM_ENDPOINT_URL"),  # 0.0.0.0 を localhost に変更
 )
 # request sent to model set on litellm proxy, `litellm --model`
 response = client.chat.completions.create(
