@@ -1,27 +1,23 @@
 [tool.poetry]
-name = "discord-bot-google-calendar"  # プロジェクト名
-version = "0.1.0"                     # バージョン
-description = "A Discord bot integrated with Google Calendar" # 説明
-authors = ["Takenori Kusaka <takenori.kusaka@gmail.com>"]  # 著者情報
+name = "discord-bot-google-calendar"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"  # Pythonのバージョン
-google-generativeai = "^0.8.3"
-python-dotenv = "^1.0.1"
-google-api-python-client = "^2.157.0"
-google-auth-httplib2 = "^0.2.0"
-google-auth-oauthlib = "^1.2.1"
-discord-py = "^2.4.0"
-requests-cache = "^1.2.1"
-openmeteo-requests = "^1.3.0"
-retry-requests = "^2.0.0"
-pandas = "^2.2.3"
-tabulate = "^0.9.0"
-litellm = "^1.58.0"
-openai = "^1.59.6"
-swarm = {git = "https://github.com/openai/swarm.git"}
+python = "^3.12"
+discord = "^2.3.2"
+python-dotenv = "^1.0.0"
+google-api-python-client = "^2.111.0"
+google-auth-httplib2 = "^0.1.1"
+google-auth-oauthlib = "^1.1.0"
+pandas = "^2.1.4"
+anthropic = "^0.7.7"
+openmeteo-requests = "^1.1.0"
+requests-cache = "^1.1.1"
+retry_requests = "^1.0.1"
 
-[tool.poetry.group.dev.dependencies]
-black = "^24.10.0"
-pylint = "^3.3.3"
-pytest = "^8.3.4"
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

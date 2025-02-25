@@ -11,7 +11,7 @@ import logging
 from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
-import discord
+import discord as pycord
 from dotenv import load_dotenv
 
 # .env ファイルから環境変数を読み込む
@@ -105,7 +105,7 @@ def is_future_event(discord_event, now):
     return discord_event.start_time > now
 
 
-class CreateEventsBot(discord.Client):
+class CreateEventsBot(pycord.Client):
     """Discord bot class for sending schedule notifications."""
 
     def __init__(self, calendar_service, *args, **kwargs):
@@ -234,8 +234,8 @@ class CreateEventsBot(discord.Client):
                         start_time=start_time,
                         end_time=end_time,
                         location=event_data["location"],
-                        privacy_level=discord.PrivacyLevel.guild_only,
-                        entity_type=discord.EntityType.external,
+                        privacy_level=pycord.PrivacyLevel.guild_only,
+                        entity_type=pycord.EntityType.external,
                     )
                     created_count += 1
                     logger.info(
@@ -267,11 +267,11 @@ def main():
     """メイン関数"""
     try:
         service = get_calendar_service()
-        intents = discord.Intents.default()
+        intents = pycord.Intents.default()
         bot = CreateEventsBot(calendar_service=service, intents=intents)
         bot.run(DISCORD_TOKEN)
 
-    except (discord.LoginFailure, discord.ConnectionClosed) as e:
+    except (pycord.LoginFailure, pycord.ConnectionClosed) as e:
         logger.error("Discord connection error: %s", str(e))
         sys.exit(1)
     except Exception as e:

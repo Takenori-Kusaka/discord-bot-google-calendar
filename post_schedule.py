@@ -13,7 +13,7 @@ from google.api_core import exceptions as google_exceptions
 from google.oauth2 import service_account
 from googleapiclient.discovery import build, Resource
 import google.generativeai as genai
-import discord
+import discord as pycord
 from dotenv import load_dotenv
 from weather import WeatherClient
 
@@ -146,7 +146,7 @@ def generate_response_text(schedule_text, period_jp, weather_markdown):
     prompts = {
         "今日": f"""
     ## あなたの役割
-    あなたはGoogleカレンダーの情報と天気情報をわかりやすく伝えるアシスタントAIです。
+    あなたはGoogleカレンダーの情報と天気情報をわかりやすく伝えるアシスタントAIで、名前は予定野 専門（よていの せんもん）です。
     以下の情報を元に、{period_jp}の予定と天気情報をユーザーに通知してください。
 
     {period_jp}の予定：
@@ -165,12 +165,30 @@ def generate_response_text(schedule_text, period_jp, weather_markdown):
 
     全体を通して絵文字で装飾してください
     体感温度基準として0-10℃を寒い、11-20℃を涼しい、21-30℃を快適、31℃以上を暑いとしてください
-    
+
+    ## 参考情報
+
+    予定を伝える相手は日下という家族です。以下の情報を参考にしてください。
+
+    ```yaml
+    - 名前: 日下 武紀（くさか　たけのり）
+      誕生日: 1991年3月19日
+      職業: ソフトウェアエンジニア
+      会社: オムロンソフトウェア株式会社
+    - 名前: 日下 佳奈（くさか　よしな）
+      誕生日: 1992年2月4日
+      職業: 品質管理・テストエンジニア
+      会社: エムシステム技研
+    - 名前: 日下 祐希
+      誕生日: 2021年5月28日
+      職業: 幼稚園生
+      園: なごみこども園    
     ```
+
     """,
         "今週": f"""
     ## あなたの役割
-    あなたはGoogleカレンダーの情報と天気情報をわかりやすく伝えるアシスタントAIです。
+    あなたはGoogleカレンダーの情報と天気情報をわかりやすく伝えるアシスタントAIで、名前は予定野 専門（よていの せんもん）です。
     以下の情報を元に、{period_jp}の予定と天気情報をユーザーに通知してください。
 
     {period_jp}の予定：
@@ -189,12 +207,30 @@ def generate_response_text(schedule_text, period_jp, weather_markdown):
 
     全体を通して絵文字で装飾してください
     体感温度基準として0-10℃を寒い、11-20℃を涼しい、21-30℃を快適、31℃以上を暑いとしてください
-    
+
+    ## 参考情報
+
+    予定を伝える相手は日下という家族です。以下の情報を参考にしてください。
+
+    ```yaml
+    - 名前: 日下 武紀（くさか　たけのり）
+      誕生日: 1991年3月19日
+      職業: ソフトウェアエンジニア
+      会社: オムロンソフトウェア株式会社
+    - 名前: 日下 佳奈（くさか　よしな）
+      誕生日: 1992年2月4日
+      職業: 品質管理・テストエンジニア
+      会社: エムシステム技研
+    - 名前: 日下 祐希
+      誕生日: 2021年5月28日
+      職業: 幼稚園生
+      園: なごみこども園    
     ```
+    
     """,
         "今月": f"""
     ## あなたの役割
-    あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIです。
+    あなたはGoogleカレンダーの情報をわかりやすく伝えるアシスタントAIで、名前は予定野 専門（よていの せんもん）です。
     以下の情報を元に、{period_jp}の予定をユーザーに通知してください。
 
     {period_jp}の予定：
@@ -206,8 +242,26 @@ def generate_response_text(schedule_text, period_jp, weather_markdown):
     2. {period_jp}の予定から推測される一言を添える(どこどこへ外出する予定があるようですね、気を付けて行ってきてください、など)
 
     全体を通して絵文字で装飾してください
-    
+
+    ## 参考情報
+
+    予定を伝える相手は日下という家族です。以下の情報を参考にしてください。
+
+    ```yaml
+    - 名前: 日下 武紀（くさか　たけのり）
+      誕生日: 1991年3月19日
+      職業: ソフトウェアエンジニア
+      会社: オムロンソフトウェア株式会社
+    - 名前: 日下 佳奈（くさか　よしな）
+      誕生日: 1992年2月4日
+      職業: 品質管理・テストエンジニア
+      会社: エムシステム技研
+    - 名前: 日下 祐希
+      誕生日: 2021年5月28日
+      職業: 幼稚園生
+      園: なごみこども園    
     ```
+    
     """,
     }
     prompt = prompts[period_jp]
@@ -220,7 +274,7 @@ def generate_response_text(schedule_text, period_jp, weather_markdown):
         return None
 
 
-class ScheduleBot(discord.Client):
+class ScheduleBot(pycord.Client):
     """Discord bot class for sending schedule notifications."""
 
     def __init__(self, response_text: str, *args, **kwargs):
@@ -288,7 +342,7 @@ def main():
 
     if response_text:
         logger.info(response_text)
-        intents = discord.Intents.default()
+        intents = pycord.Intents.default()
         bot = ScheduleBot(response_text, intents=intents)
         bot.run(DISCORD_TOKEN)
 
