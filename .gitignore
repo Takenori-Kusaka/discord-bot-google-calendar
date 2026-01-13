@@ -1,5 +1,52 @@
+# Environment and secrets
 .env
+*.env.local
+
+# Cache and temporary files
 .cache.sqlite
-__pycache__/weather.cpython-310.pyc
-weather_app.log
+*.sqlite
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.log
+
+# Logs
 logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Build
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Work directory (notes, tickets, temp files - NOT tracked)
+.work/
+
+# Temporary Claude files
+tmpclaude-*
+nul
+
+# OS files
+.DS_Store
+Thumbs.db
