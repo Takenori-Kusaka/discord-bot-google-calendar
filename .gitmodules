@@ -1,0 +1,3 @@
+[submodule "docs/personal"]
+	path = docs/personal
+	url = https://github.com/Takenori-Kusaka/personal.git
