@@ -1,23 +1,67 @@
 [tool.poetry]
-name = "discord-bot-google-calendar"
+name = "butler-kuroda"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "家庭内執事AI「黒田」- 日下家の生活をサポートするAIアシスタント"
+authors = ["Takenori Kusaka <takenori.kusaka@gmail.com>"]
 readme = "README.md"
+packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.12"
-discord = "^2.3.2"
-python-dotenv = "^1.0.0"
+python = "^3.11"
+# Discord
+discord-py = "^2.3.2"
+# Google Calendar
 google-api-python-client = "^2.111.0"
 google-auth-httplib2 = "^0.1.1"
 google-auth-oauthlib = "^1.1.0"
-pandas = "^2.1.4"
-anthropic = "^0.7.7"
-openmeteo-requests = "^1.1.0"
-requests-cache = "^1.1.1"
-retry_requests = "^1.0.1"
+# Claude API
+anthropic = "^0.40.0"
+# Scheduler
+apscheduler = "^3.10.4"
+# Configuration
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+python-dotenv = "^1.0.0"
+# Logging
+structlog = "^24.1.0"
+# YAML
+pyyaml = "^6.0.1"
+# HTTP (for future use)
+aiohttp = "^3.9.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.23.0"
+pytest-cov = "^4.1.0"
+black = "^24.1.0"
+isort = "^5.13.0"
+mypy = "^1.8.0"
+ruff = "^0.1.0"
+
+[tool.poetry.scripts]
+butler = "src.main:run"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
