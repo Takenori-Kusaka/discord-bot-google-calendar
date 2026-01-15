@@ -1,6 +1,7 @@
 # Environment and secrets
 .env
 *.env.local
+credentials/
 
 # Cache and temporary files
 .cache.sqlite
