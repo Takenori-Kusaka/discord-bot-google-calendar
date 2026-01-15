@@ -42,23 +42,19 @@ class Settings(BaseSettings):
     )
 
     # スケジュール設定
-    morning_notification_hour: int = Field(
-        default=6, description="朝の通知時刻（時）"
-    )
+    morning_notification_hour: int = Field(default=6, description="朝の通知時刻（時）")
     morning_notification_minute: int = Field(
         default=0, description="朝の通知時刻（分）"
     )
-    weekly_event_day: str = Field(
-        default="fri", description="週次イベント通知曜日"
-    )
-    weekly_event_hour: int = Field(
-        default=18, description="週次イベント通知時刻（時）"
-    )
+    weekly_event_day: str = Field(default="fri", description="週次イベント通知曜日")
+    weekly_event_hour: int = Field(default=18, description="週次イベント通知時刻（時）")
     timezone: str = Field(default="Asia/Tokyo", description="タイムゾーン")
 
     # ログ設定
     log_level: str = Field(default="INFO", description="ログレベル")
-    log_dir: Optional[Path] = Field(default=Path("logs"), description="ログディレクトリ")
+    log_dir: Optional[Path] = Field(
+        default=Path("logs"), description="ログディレクトリ"
+    )
 
     # 執事設定
     butler_name: str = Field(default="黒田", description="執事の名前")

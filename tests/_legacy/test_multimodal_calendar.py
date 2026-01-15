@@ -10,10 +10,12 @@ from agents.calendar_agent import add_event
 
 load_dotenv()
 
+
 def encode_image_to_base64(image_path):
     """画像ファイルをbase64エンコードする"""
-    with open(image_path, 'rb') as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
 
 def fix_json_format(json_str: str) -> str:
     """JSONの形式を修正する"""
@@ -24,22 +26,23 @@ def fix_json_format(json_str: str) -> str:
         line = lines[i]
         next_line = lines[i + 1]
         if (
-            line and
-            not line.endswith(',') and
-            not line.endswith('{') and
-            not line.endswith('[') and
-            not next_line.startswith('}') and
-            not next_line.startswith(']')
+            line
+            and not line.endswith(",")
+            and not line.endswith("{")
+            and not line.endswith("[")
+            and not next_line.startswith("}")
+            and not next_line.startswith("]")
         ):
-            lines[i] = line + ','
-    return '\n'.join(lines)
+            lines[i] = line + ","
+    return "\n".join(lines)
+
 
 async def process_image_calendar_request(image_path: str) -> str:
     """画像から予定情報を抽出してカレンダーに登録する"""
     try:
         # 画像をbase64エンコード
         image_base64 = encode_image_to_base64(image_path)
-        
+
         # Anthropicクライアントの初期化
         client = anthropic.Client(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -80,39 +83,38 @@ async def process_image_calendar_request(image_path: str) -> str:
         # Anthropic APIを呼び出し
         response = client.messages.create(
             model="claude-3-sonnet-20240229",
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": system_prompt
-                    },
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": image_base64
-                        }
-                    }
-                ]
-            }],
-            max_tokens=1000
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": system_prompt},
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": image_base64,
+                            },
+                        },
+                    ],
+                }
+            ],
+            max_tokens=1000,
         )
 
         # レスポンスの解析
         response_text = response.content[0].text.strip()
         print(f"APIレスポンス:\n{response_text}")
-        
+
         # JSON部分の抽出とパース
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
         if json_start == -1 or json_end == 0:
             raise ValueError("APIレスポンスからJSONが見つかりません")
-        
+
         json_str = response_text[json_start:json_end]
         print(f"\n抽出されたJSON:\n{json_str}")
-        
+
         # JSON形式の修正とパース
         try:
             fixed_json = fix_json_format(json_str)
@@ -122,7 +124,8 @@ async def process_image_calendar_request(image_path: str) -> str:
             print(f"JSONパースエラー: {str(e)}")
             # バックアップとしてeval
             import ast
-            fixed_json = fixed_json.replace('null', 'None')
+
+            fixed_json = fixed_json.replace("null", "None")
             parsed_info = ast.literal_eval(fixed_json)
 
         # 日時の設定
@@ -132,7 +135,7 @@ async def process_image_calendar_request(image_path: str) -> str:
             day=parsed_info["date_info"].get("day", datetime.now().day),
             hour=parsed_info["time_info"].get("start_hour", 10),
             minute=parsed_info["time_info"].get("start_minute", 0),
-            tzinfo=ZoneInfo("Asia/Tokyo")
+            tzinfo=ZoneInfo("Asia/Tokyo"),
         )
 
         # 終了時刻の計算
@@ -172,7 +175,7 @@ async def process_image_calendar_request(image_path: str) -> str:
             summary=parsed_info["title"],
             start_time=start_time.isoformat(),
             end_time=end_time.isoformat(),
-            description=description.strip()
+            description=description.strip(),
         )
 
         return f"""
@@ -188,16 +191,19 @@ async def process_image_calendar_request(image_path: str) -> str:
 
     except Exception as e:
         import traceback
+
         print(f"エラーの詳細:\n{traceback.format_exc()}")
         return f"エラーが発生しました: {str(e)}"
+
 
 async def main():
     # テスト画像のパス
     image_path = "tests/images/kyogen.jpg"
-    
+
     print(f"画像ファイル: {image_path}")
     result = await process_image_calendar_request(image_path)
     print(result)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

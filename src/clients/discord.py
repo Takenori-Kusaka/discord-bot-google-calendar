@@ -139,7 +139,9 @@ class DiscordClient:
             logger.error("Failed to send DM", error=str(e))
             return False
 
-    async def send_error_notification(self, error: Exception, context: str = "") -> bool:
+    async def send_error_notification(
+        self, error: Exception, context: str = ""
+    ) -> bool:
         """エラー通知をDMで送信
 
         Args:

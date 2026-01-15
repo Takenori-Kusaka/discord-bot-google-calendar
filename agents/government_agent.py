@@ -4,66 +4,71 @@ from bs4 import BeautifulSoup
 import asyncio
 from .base_agent import BaseAgent
 
+
 def crawl_government_website(url: str, query: str = "") -> str:
     """
     政府・自治体のWebサイトをクロールする
-    
+
     Args:
         url (str): クロール対象のURL
         query (str): 検索クエリ（オプション）
-    
+
     Returns:
         str: 抽出された情報
     """
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        
+
         # 検索ページのURLを構築
         search_url = f"{url}/search" if query else url
-        params = {'q': query} if query else None
-        
+        params = {"q": query} if query else None
+
         response = requests.get(search_url, params=params, headers=headers, timeout=10)
         response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
         # 検索結果の抽出
         results = []
-        search_results = soup.find_all(['h2', 'h3', 'a'], class_=['title', 'result-title'])[:3]
-        
+        search_results = soup.find_all(
+            ["h2", "h3", "a"], class_=["title", "result-title"]
+        )[:3]
+
         if not search_results:
             return "関連する情報は見つかりませんでした。"
-        
+
         for result in search_results:
             title = result.text.strip()
-            link = result.get('href', '')
-            if link and not link.startswith('http'):
+            link = result.get("href", "")
+            if link and not link.startswith("http"):
                 link = url + link
             results.append(f"- {title}\n  {link}")
-        
+
         return "\n".join(results)
-        
+
     except Exception as e:
         return str(e)
+
 
 def format_government_info(source: str, info: str) -> str:
     """
     政府・自治体の情報を整形する
-    
+
     Args:
         source (str): 情報源（機関名）
         info (str): クロール結果
-    
+
     Returns:
         str: 整形された情報
     """
     return f"【{source}】\n{info}\n"
 
+
 class GovernmentAgent(BaseAgent):
     """Agent for handling government and local authority information"""
-    
+
     def __init__(self):
         self.sources = {
             "総務省": "https://www.soumu.go.jp",
@@ -75,9 +80,9 @@ class GovernmentAgent(BaseAgent):
             "国土交通省": "https://www.mlit.go.jp",
             "財務省": "https://www.mof.go.jp",
             "京都府": "https://www.pref.kyoto.jp",
-            "木津川市": "https://www.city.kizugawa.lg.jp"
+            "木津川市": "https://www.city.kizugawa.lg.jp",
         }
-        
+
         instructions = """
         あなたは日下家の執事として、政府や自治体の情報を提供する役割を担っています。
         各機関のWebサイトから情報を収集し、丁寧な言葉遣いで提供してください。
@@ -101,16 +106,11 @@ class GovernmentAgent(BaseAgent):
         - 京都府
         - 木津川市
         """
-        
-        functions = [
-            crawl_government_website,
-            format_government_info
-        ]
-        
+
+        functions = [crawl_government_website, format_government_info]
+
         super().__init__(
-            name="GovernmentAgent",
-            instructions=instructions,
-            functions=functions
+            name="GovernmentAgent", instructions=instructions, functions=functions
         )
 
     def format_government_info(self, source: str, info: str) -> str:
@@ -120,10 +120,10 @@ class GovernmentAgent(BaseAgent):
     async def process(self, query: str) -> str:
         """
         政府・自治体に関する問い合わせを処理する
-        
+
         Args:
             query (str): ユーザーからの問い合わせ
-            
+
         Returns:
             str: 政府・自治体の情報のレスポンス
         """
@@ -149,4 +149,6 @@ class GovernmentAgent(BaseAgent):
             return response
 
         except Exception as e:
-            return f"申し訳ございません。情報の取得中にエラーが発生いたしました：{str(e)}"
+            return (
+                f"申し訳ございません。情報の取得中にエラーが発生いたしました：{str(e)}"
+            )

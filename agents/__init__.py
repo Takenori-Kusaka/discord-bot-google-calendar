@@ -13,12 +13,12 @@ from .news_agent import NewsAgent
 from .wikipedia_agent import WikipediaAgent
 
 __all__ = [
-    'BaseAgent',
-    'CalendarAgent',
-    'WeatherAgent',
-    'SearchAgent',
-    'KusakaAgent',
-    'GovernmentAgent',
-    'NewsAgent',
-    'WikipediaAgent'
+    "BaseAgent",
+    "CalendarAgent",
+    "WeatherAgent",
+    "SearchAgent",
+    "KusakaAgent",
+    "GovernmentAgent",
+    "NewsAgent",
+    "WikipediaAgent",
 ]

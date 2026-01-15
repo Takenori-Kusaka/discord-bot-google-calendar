@@ -111,7 +111,9 @@ class TestButler:
         # Arrange
         mock_calendar_client.get_today_events.return_value = []
         mock_claude_client.filter_important_events.return_value = []
-        mock_claude_client.generate_butler_message.return_value = "本日のご予定はございません"
+        mock_claude_client.generate_butler_message.return_value = (
+            "本日のご予定はございません"
+        )
 
         with patch("src.butler.Path.exists", return_value=False):
             butler = Butler(

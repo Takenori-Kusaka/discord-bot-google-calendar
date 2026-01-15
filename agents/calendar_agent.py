@@ -11,8 +11,10 @@ from agents.google_calendar import GoogleCalendarAPI
 # ロガーの設定
 logger = logging.getLogger(__name__)
 
+
 class CalendarAgent:
     """カレンダー操作を担当するエージェント"""
+
     def __init__(self, test_mode: bool = False):
         self.name = "calendar_agent"
         self.description = "カレンダーの予定管理を担当するエージェント"
@@ -21,7 +23,7 @@ class CalendarAgent:
         self.client = Anthropic(api_key=api_key)
         self.calendar_api = GoogleCalendarAPI(test_mode=test_mode)
         self.timezone = ZoneInfo("Asia/Tokyo")
-        
+
         # 現在時刻をシステムプロンプトに含める
         now = datetime.now(self.timezone)
         self.system_prompt = f"""あなたはカレンダー管理の専門家です。
@@ -73,8 +75,10 @@ class CalendarAgent:
 エラーが発生した場合はnullを返してください。
 """
         self.logger = logging.getLogger("Agent.Calendar")
-        self.logger.debug("Calendar Agent initialized in %s mode", 
-                         "test" if test_mode else "production")
+        self.logger.debug(
+            "Calendar Agent initialized in %s mode",
+            "test" if test_mode else "production",
+        )
 
     async def process(self, input_text: str) -> AgentResponse:
         """エージェントの処理を実行"""
@@ -87,31 +91,33 @@ class CalendarAgent:
                     events_text = "今後の予定:\n" + "\n\n".join(result["events"])
                     return AgentResponse(agent_name=self.name, response=events_text)
                 else:
-                    return AgentResponse(agent_name=self.name, response=result["message"])
-            
+                    return AgentResponse(
+                        agent_name=self.name, response=result["message"]
+                    )
+
             # 予定作成の場合
             self.logger.debug(f"Processing calendar request: {input_text}")
             message = self.client.messages.create(
                 model="claude-3-sonnet-20240229",
                 max_tokens=1024,
                 system=self.system_prompt,
-                messages=[{"role": "user", "content": input_text}]
+                messages=[{"role": "user", "content": input_text}],
             )
-            
+
             response_text = message.content[0].text if message.content else "null"
             self.logger.debug(f"Claude response: {response_text}")
-            
+
             try:
                 # JSON文字列の修正
                 fixed_json = self.calendar_api._fix_json_response(response_text.strip())
                 event_data = json.loads(fixed_json)
-                
+
                 if event_data is None:
                     return AgentResponse(
                         agent_name=self.name,
-                        response="申し訳ありません。予定の詳細を理解できませんでした。"
+                        response="申し訳ありません。予定の詳細を理解できませんでした。",
                     )
-                
+
                 # Googleカレンダーにイベントを作成
                 result = self.calendar_api.create_event(event_data)
                 if result["status"] == "success":
@@ -122,19 +128,22 @@ class CalendarAgent:
                         response += f"\n\nカレンダーURL: {result['link']}"
                     return AgentResponse(agent_name=self.name, response=response)
                 else:
-                    return AgentResponse(agent_name=self.name, response=result["message"])
-                
+                    return AgentResponse(
+                        agent_name=self.name, response=result["message"]
+                    )
+
             except json.JSONDecodeError as e:
-                self.logger.error(f"Failed to parse Claude response as JSON: {e}", exc_info=True)
+                self.logger.error(
+                    f"Failed to parse Claude response as JSON: {e}", exc_info=True
+                )
                 self.logger.error(f"Raw response: {response_text}")
                 return AgentResponse(
                     agent_name=self.name,
-                    response="申し訳ありません。予定の解析に失敗しました。もう一度お試しください。"
+                    response="申し訳ありません。予定の解析に失敗しました。もう一度お試しください。",
                 )
-            
+
         except Exception as e:
             self.logger.error(f"Error in calendar agent: {str(e)}", exc_info=True)
             return AgentResponse(
-                agent_name=self.name,
-                response=f"エラーが発生しました: {str(e)}"
+                agent_name=self.name, response=f"エラーが発生しました: {str(e)}"
             )

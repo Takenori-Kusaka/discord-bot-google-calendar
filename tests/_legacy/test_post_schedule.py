@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 # Mock discord module before importing post_schedule
 pycord_mock = MagicMock()
-sys.modules['discord'] = pycord_mock
+sys.modules["discord"] = pycord_mock
 
 from post_schedule import (
     get_calendar_service,
@@ -28,6 +28,7 @@ from dotenv import load_dotenv  # noqa: E402
 # .env ファイルを読み込む
 load_dotenv()
 
+
 # モック用の設定
 class MockResponse:
     """Mock response class for testing"""
@@ -40,6 +41,7 @@ class MockResponse:
 
     def __iter__(self):
         yield self
+
 
 @pytest.fixture(name="mocked_genai")
 def fixture_mocked_genai(monkeypatch):
@@ -64,6 +66,7 @@ def fixture_mocked_genai(monkeypatch):
         if "GOOGLE_API_KEY" in os.environ:
             del os.environ["GOOGLE_API_KEY"]
 
+
 class MockGenerativeModel:
     """Mock GenerativeModel class for testing"""
 
@@ -73,10 +76,12 @@ class MockGenerativeModel:
             raise ConnectionError("Mocked connection error")
         return MockResponse("Mocked response", prompt_feedback={}, safety_ratings=[])
 
+
 def test_get_calendar_service():
     """Test getting calendar service."""
     service = get_calendar_service()
     assert service is not None
+
 
 def test_fetch_events():
     """Test fetching events from calendar."""
@@ -85,6 +90,7 @@ def test_fetch_events():
     end_date = datetime.date(2023, 1, 31)
     events = fetch_events(service, start_date, end_date)
     assert isinstance(events, list)
+
 
 def test_filter_events():
     """Test filtering events by date range."""
@@ -97,6 +103,7 @@ def test_filter_events():
     end_date = datetime.date(2023, 1, 31)
     filtered_events = filter_events(events, start_date, end_date)
     assert len(filtered_events) == 3
+
 
 def test_format_schedule_text():
     """Test formatting schedule text from events."""
@@ -116,6 +123,7 @@ def test_format_schedule_text():
     schedule_text = format_schedule_text(filtered_events, period_jp)
     assert "Event 1" in schedule_text
     assert "Event 2" in schedule_text
+
 
 def test_generate_response_text(mocked_genai):  # pylint: disable=unused-argument
     """Test generating AI response from schedule text."""

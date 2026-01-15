@@ -11,20 +11,21 @@ from agents.openmeteo_client import OpenMeteoClient
 
 logger = logging.getLogger(__name__)
 
+
 class WeatherAgent:
     """天気情報を提供するエージェント"""
-    
+
     def __init__(self):
         self.name = "weather_agent"
         self.description = "天気情報の取得と提供を担当するエージェント"
         api_key = os.getenv("ANTHROPIC_API_KEY")
         logger.debug(f"Initializing Weather Agent with API key: {api_key[:6]}...")
-        
+
         self.client = Anthropic(api_key=api_key)
         self.places_client = GooglePlacesClient()
         self.weather_client = OpenMeteoClient()
         self.timezone = ZoneInfo("Asia/Tokyo")
-        
+
         # 現在時刻をシステムプロンプトに含める
         now = datetime.now(self.timezone)
         self.system_prompt = f"""あなたは天気予報の専門家です。
@@ -91,24 +92,24 @@ class WeatherAgent:
                 model="claude-3-sonnet-20240229",
                 max_tokens=1024,
                 system=self.system_prompt,
-                messages=[{"role": "user", "content": input_text}]
+                messages=[{"role": "user", "content": input_text}],
             )
-            
+
             response_text = message.content[0].text if message.content else "null"
             self.logger.debug(f"Claude response: {response_text}")
-            
+
             try:
                 query_data = json.loads(response_text.strip())
                 if query_data is None:
                     return AgentResponse(
                         agent_name=self.name,
-                        response="申し訳ありません。ご要望を理解できませんでした。"
+                        response="申し訳ありません。ご要望を理解できませんでした。",
                     )
-                
+
                 # 場所の緯度経度を取得
                 location = self.places_client.search_location(query_data["location"])
                 self.logger.debug(f"Location data: {location}")
-                
+
                 # 日時の処理
                 period = query_data["period"]
                 start_date = self._parse_date(period["start_date"])
@@ -117,38 +118,39 @@ class WeatherAgent:
                     if "end_date" in period and period["is_range"]
                     else start_date
                 )
-                
+
                 if "time" in period:
                     hour, minute = map(int, period["time"].split(":"))
                     start_date = start_date.replace(hour=hour, minute=minute)
                     end_date = end_date.replace(hour=hour, minute=minute)
-                
+
                 # 天気情報を取得
                 weather_data = self.weather_client.get_weather(
                     latitude=location["latitude"],
                     longitude=location["longitude"],
                     start_date=start_date,
-                    end_date=end_date
+                    end_date=end_date,
                 )
-                
+
                 # レスポンスの作成
                 weather_text = self.weather_client.format_weather_text(weather_data)
                 response = f"""{location['name']}の天気予報です。
 
 {weather_text}"""
-                
+
                 return AgentResponse(agent_name=self.name, response=response)
-                
+
             except json.JSONDecodeError as e:
-                self.logger.error(f"Failed to parse Claude response as JSON: {e}", exc_info=True)
+                self.logger.error(
+                    f"Failed to parse Claude response as JSON: {e}", exc_info=True
+                )
                 return AgentResponse(
                     agent_name=self.name,
-                    response="申し訳ありません。天気予報の解析に失敗しました。もう一度お試しください。"
+                    response="申し訳ありません。天気予報の解析に失敗しました。もう一度お試しください。",
                 )
-            
+
         except Exception as e:
             self.logger.error(f"Error in weather agent: {str(e)}", exc_info=True)
             return AgentResponse(
-                agent_name=self.name,
-                response=f"エラーが発生しました: {str(e)}"
+                agent_name=self.name, response=f"エラーが発生しました: {str(e)}"
             )
