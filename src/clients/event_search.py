@@ -128,7 +128,9 @@ class EventSearchClient:
         # 1. Webスクレイピングで各サイトからイベントを取得
         scrape_results = await self._scrape_all_sources()
         results.extend(scrape_results)
-        logger.info(f"Scraped {len(scrape_results)} results from {len(self.sources)} sources")
+        logger.info(
+            f"Scraped {len(scrape_results)} results from {len(self.sources)} sources"
+        )
 
         # 2. Google Custom Search APIで補完検索
         async with aiohttp.ClientSession() as session:
