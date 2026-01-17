@@ -183,33 +183,56 @@ class EventSearchClient:
         timeout: int,
     ) -> list[dict]:
         """単一ソースからスクレイピング"""
+        import ssl
+        import certifi
+
         results = []
 
         try:
-            async with session.get(
-                source.url, timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as response:
-                if response.status != 200:
-                    logger.warning(
-                        f"HTTP {response.status} for {source.name}: {source.url}"
+            # SSL証明書の検証を緩和（一部サイト対応）
+            ssl_context = ssl.create_default_context(cafile=certifi.where())
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+            connector = aiohttp.TCPConnector(ssl=ssl_context)
+            async with aiohttp.ClientSession(connector=connector) as ssl_session:
+                async with ssl_session.get(
+                    source.url, timeout=aiohttp.ClientTimeout(total=timeout)
+                ) as response:
+                    if response.status != 200:
+                        logger.warning(
+                            f"HTTP {response.status} for {source.name}: {source.url}"
+                        )
+                        return []
+
+                    # エンコーディングを自動検出、失敗時はutf-8/shift_jis/euc-jpを試行
+                    try:
+                        html = await response.text()
+                    except UnicodeDecodeError:
+                        raw = await response.read()
+                        for encoding in ["utf-8", "shift_jis", "euc-jp", "cp932"]:
+                            try:
+                                html = raw.decode(encoding)
+                                break
+                            except UnicodeDecodeError:
+                                continue
+                        else:
+                            html = raw.decode("utf-8", errors="ignore")
+
+                    soup = BeautifulSoup(html, "html.parser")
+
+                    # コンテナセレクタでイベント要素を取得
+                    container_selector = source.selectors.get("container", "article")
+                    containers = soup.select(container_selector)[:10]  # 最大10件
+
+                    for container in containers:
+                        event = self._extract_event_from_element(container, source)
+                        if event:
+                            results.append(event)
+
+                    logger.info(
+                        f"Scraped {len(results)} events from {source.name}"
                     )
-                    return []
-
-                html = await response.text()
-                soup = BeautifulSoup(html, "html.parser")
-
-                # コンテナセレクタでイベント要素を取得
-                container_selector = source.selectors.get("container", "article")
-                containers = soup.select(container_selector)[:10]  # 最大10件
-
-                for container in containers:
-                    event = self._extract_event_from_element(container, source)
-                    if event:
-                        results.append(event)
-
-                logger.info(
-                    f"Scraped {len(results)} events from {source.name}"
-                )
 
         except asyncio.TimeoutError:
             logger.warning(f"Timeout scraping {source.name}")
