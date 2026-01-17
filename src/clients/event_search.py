@@ -3,10 +3,13 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
-from zoneinfo import ZoneInfo
 
 import aiohttp
+import yaml
+from bs4 import BeautifulSoup
+from zoneinfo import ZoneInfo
 
 from ..utils.logger import get_logger
 
@@ -26,23 +29,30 @@ class RegionalEvent:
     target_audience: Optional[str] = None  # 対象年齢層
 
 
+@dataclass
+class EventSource:
+    """イベントソース設定"""
+
+    name: str
+    url: str
+    enabled: bool
+    priority: int
+    selectors: dict
+
+
 class EventSearchClient:
     """地域イベント検索クライアント
 
-    Google Search APIとPerplexity APIを使用して
+    Webスクレイピング、Google Search API、Perplexity APIを使用して
     地域イベント情報を収集します。
     """
 
-    # 検索対象施設・地域
+    # Google Search用のバックアップ検索対象
     SEARCH_TARGETS = [
         "高の原イオン イベント",
         "けいはんなプラザ イベント",
-        "ミナーラ 奈良 イベント",
-        "アスピアやましろ イベント",
-        "木津川市 イベント",
         "木津川市 子育て イベント",
         "奈良市 子供 イベント",
-        "精華町 イベント",
     ]
 
     def __init__(
@@ -51,16 +61,59 @@ class EventSearchClient:
         google_search_engine_id: str,
         perplexity_api_key: Optional[str] = None,
         timezone: str = "Asia/Tokyo",
+        config_path: str = "config/event_sources.yml",
     ):
         self.google_api_key = google_api_key
         self.google_search_engine_id = google_search_engine_id
         self.perplexity_api_key = perplexity_api_key
         self.timezone = ZoneInfo(timezone)
+        self.config_path = Path(config_path)
+
+        # 設定を読み込み
+        self.sources: list[EventSource] = []
+        self.scraping_config: dict = {}
+        self.filtering_config: dict = {}
+        self._load_config()
 
         logger.info(
             "Event search client initialized",
             has_perplexity=bool(perplexity_api_key),
+            sources_count=len(self.sources),
         )
+
+    def _load_config(self) -> None:
+        """設定ファイルを読み込み"""
+        try:
+            if self.config_path.exists():
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    config = yaml.safe_load(f)
+
+                # イベントソースを読み込み
+                for source_data in config.get("sources", []):
+                    if source_data.get("enabled", True):
+                        self.sources.append(
+                            EventSource(
+                                name=source_data["name"],
+                                url=source_data["url"],
+                                enabled=source_data.get("enabled", True),
+                                priority=source_data.get("priority", 5),
+                                selectors=source_data.get("selectors", {}),
+                            )
+                        )
+
+                # スクレイピング設定
+                self.scraping_config = config.get("scraping", {})
+                # フィルタリング設定
+                self.filtering_config = config.get("filtering", {})
+
+                # 優先度でソート
+                self.sources.sort(key=lambda x: x.priority)
+
+                logger.info(f"Loaded {len(self.sources)} event sources from config")
+            else:
+                logger.warning(f"Config file not found: {self.config_path}")
+        except Exception as e:
+            logger.error(f"Failed to load config: {e}")
 
     async def search_events(self) -> list[dict]:
         """地域イベントを検索
@@ -72,7 +125,12 @@ class EventSearchClient:
 
         results = []
 
-        # Google Custom Search APIで検索
+        # 1. Webスクレイピングで各サイトからイベントを取得
+        scrape_results = await self._scrape_all_sources()
+        results.extend(scrape_results)
+        logger.info(f"Scraped {len(scrape_results)} results from {len(self.sources)} sources")
+
+        # 2. Google Custom Search APIで補完検索
         async with aiohttp.ClientSession() as session:
             for target in self.SEARCH_TARGETS:
                 try:
@@ -83,9 +141,9 @@ class EventSearchClient:
                 except Exception as e:
                     logger.warning(f"Search failed for {target}: {e}")
 
-        logger.info(f"Found {len(results)} raw results from Google Search")
+        logger.info(f"Found {len(results)} total results (scrape + search)")
 
-        # Perplexityで補完検索（利用可能な場合）
+        # 3. Perplexityで補完検索（利用可能な場合）
         if self.perplexity_api_key:
             try:
                 perplexity_results = await self._perplexity_search()
@@ -94,6 +152,121 @@ class EventSearchClient:
                 logger.warning(f"Perplexity search failed: {e}")
 
         return results
+
+    async def _scrape_all_sources(self) -> list[dict]:
+        """全てのソースからスクレイピング"""
+        results = []
+        delay = self.scraping_config.get("request_delay", 1.0)
+        timeout = self.scraping_config.get("timeout", 30)
+        user_agent = self.scraping_config.get(
+            "user_agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        )
+
+        headers = {"User-Agent": user_agent}
+
+        async with aiohttp.ClientSession(headers=headers) as session:
+            for source in self.sources:
+                try:
+                    scraped = await self._scrape_source(session, source, timeout)
+                    results.extend(scraped)
+                    await asyncio.sleep(delay)
+                except Exception as e:
+                    logger.warning(f"Scrape failed for {source.name}: {e}")
+
+        return results
+
+    async def _scrape_source(
+        self,
+        session: aiohttp.ClientSession,
+        source: EventSource,
+        timeout: int,
+    ) -> list[dict]:
+        """単一ソースからスクレイピング"""
+        results = []
+
+        try:
+            async with session.get(
+                source.url, timeout=aiohttp.ClientTimeout(total=timeout)
+            ) as response:
+                if response.status != 200:
+                    logger.warning(
+                        f"HTTP {response.status} for {source.name}: {source.url}"
+                    )
+                    return []
+
+                html = await response.text()
+                soup = BeautifulSoup(html, "html.parser")
+
+                # コンテナセレクタでイベント要素を取得
+                container_selector = source.selectors.get("container", "article")
+                containers = soup.select(container_selector)[:10]  # 最大10件
+
+                for container in containers:
+                    event = self._extract_event_from_element(container, source)
+                    if event:
+                        results.append(event)
+
+                logger.info(
+                    f"Scraped {len(results)} events from {source.name}"
+                )
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout scraping {source.name}")
+        except Exception as e:
+            logger.warning(f"Error scraping {source.name}: {e}")
+
+        return results
+
+    def _extract_event_from_element(
+        self, element: BeautifulSoup, source: EventSource
+    ) -> Optional[dict]:
+        """HTML要素からイベント情報を抽出"""
+        try:
+            selectors = source.selectors
+
+            # タイトル
+            title_elem = element.select_one(selectors.get("title", "h2, h3"))
+            title = title_elem.get_text(strip=True) if title_elem else ""
+
+            if not title:
+                return None
+
+            # 日付
+            date_elem = element.select_one(selectors.get("date", ".date, time"))
+            date = date_elem.get_text(strip=True) if date_elem else ""
+
+            # 説明
+            desc_elem = element.select_one(selectors.get("description", "p"))
+            description = desc_elem.get_text(strip=True)[:200] if desc_elem else ""
+
+            # リンク
+            link_elem = element.select_one(selectors.get("link", "a"))
+            link = ""
+            if link_elem and link_elem.get("href"):
+                href = link_elem["href"]
+                # 相対URLを絶対URLに変換
+                if href.startswith("/"):
+                    from urllib.parse import urlparse
+
+                    parsed = urlparse(source.url)
+                    link = f"{parsed.scheme}://{parsed.netloc}{href}"
+                elif href.startswith("http"):
+                    link = href
+                else:
+                    link = source.url
+
+            return {
+                "title": title,
+                "snippet": f"{date} - {description}" if date else description,
+                "link": link,
+                "source": f"scrape:{source.name}",
+                "query": source.name,
+            }
+
+        except Exception as e:
+            logger.debug(f"Failed to extract event: {e}")
+            return None
 
     async def _google_search(
         self, session: aiohttp.ClientSession, query: str
@@ -150,7 +323,7 @@ class EventSearchClient:
 特に以下の施設・地域のイベントを重点的に:
 - 高の原イオン
 - けいはんなプラザ
-- ミナーラ
+- ガーデンモール木津川
 - アスピアやましろ
 - 木津川市の公共イベント
 

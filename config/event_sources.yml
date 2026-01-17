@@ -1,0 +1,130 @@
+# イベント取得先設定
+# 各サイトのスクレイピングルールを定義
+
+sources:
+  # けいはんなプラザ
+  - name: "けいはんなプラザ"
+    url: "https://www.keihanna-plaza.co.jp/event/"
+    enabled: true
+    priority: 1
+    selectors:
+      container: "article, .event-item, .event-list li"
+      title: "h2, h3, .event-title, .title"
+      date: ".date, .event-date, time"
+      description: ".description, .summary, p"
+      link: "a"
+
+  # 高の原イオン
+  - name: "高の原イオン"
+    url: "https://www.aeon.jp/sc/takanohara/event/"
+    enabled: true
+    priority: 1
+    selectors:
+      container: ".event-item, .event-list li, article"
+      title: "h2, h3, .event-title"
+      date: ".date, .period, time"
+      description: ".description, .text, p"
+      link: "a"
+
+  # アスピアやましろ
+  - name: "アスピアやましろ"
+    url: "https://www.nem-shiteikanri.jp/shisetsu/aspia/cgi-bin/event_wn/list.cgi"
+    enabled: true
+    priority: 2
+    selectors:
+      container: "tr, .event-item, li"
+      title: "td:nth-child(2), .title, a"
+      date: "td:nth-child(1), .date"
+      description: "td:nth-child(3), .description"
+      link: "a"
+
+  # 奈良市観光協会
+  - name: "奈良市観光協会"
+    url: "https://narashikanko.or.jp/event/"
+    enabled: true
+    priority: 1
+    selectors:
+      container: "article, .event-card, .event-item"
+      title: "h2, h3, .title"
+      date: ".date, time, .event-date"
+      description: ".excerpt, .description, p"
+      link: "a"
+
+  # ガーデンモール木津川
+  - name: "ガーデンモール木津川"
+    url: "http://gardenmall-kizugawa.com/eventlist.html"
+    enabled: true
+    priority: 2
+    selectors:
+      container: ".event, .event-item, li"
+      title: "h2, h3, .title, a"
+      date: ".date, .period"
+      description: ".description, p"
+      link: "a"
+
+  # 京田辺・木津川ゴーガイネット
+  - name: "京田辺・木津川ゴーガイネット"
+    url: "https://kyotanabekizugawa.goguynet.jp/category/cat_event/"
+    enabled: true
+    priority: 2
+    selectors:
+      container: "article, .post, .event-item"
+      title: "h2, h3, .entry-title"
+      date: ".date, time, .post-date"
+      description: ".excerpt, .entry-summary, p"
+      link: "a"
+
+  # アルコ宇治
+  - name: "アルコ宇治"
+    url: "https://alco-uj.com/category/event/"
+    enabled: true
+    priority: 3
+    selectors:
+      container: "article, .post, .event-item"
+      title: "h2, h3, .entry-title"
+      date: ".date, time"
+      description: ".excerpt, p"
+      link: "a"
+
+  # ウォーカープラス奈良
+  - name: "ウォーカープラス奈良"
+    url: "https://www.walkerplus.com/event_list/ar0729201/nara/"
+    enabled: true
+    priority: 1
+    selectors:
+      container: ".m-event-card, .event-item, article"
+      title: "h2, h3, .m-event-card__title"
+      date: ".date, .m-event-card__date"
+      description: ".description, .m-event-card__text"
+      link: "a"
+
+# スクレイピング設定
+scraping:
+  # リクエスト間隔（秒）
+  request_delay: 1.0
+  # タイムアウト（秒）
+  timeout: 30
+  # User-Agent
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  # 最大リトライ回数
+  max_retries: 3
+
+# フィルタリング設定
+filtering:
+  # 子供向けイベントのキーワード
+  family_keywords:
+    - "子供"
+    - "こども"
+    - "キッズ"
+    - "親子"
+    - "ファミリー"
+    - "家族"
+    - "幼児"
+    - "未就学"
+    - "ワークショップ"
+    - "体験"
+  # 除外キーワード
+  exclude_keywords:
+    - "中止"
+    - "延期"
+    - "終了"
