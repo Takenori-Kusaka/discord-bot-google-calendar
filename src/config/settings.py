@@ -50,6 +50,17 @@ class Settings(BaseSettings):
     weekly_event_hour: int = Field(default=18, description="週次イベント通知時刻（時）")
     timezone: str = Field(default="Asia/Tokyo", description="タイムゾーン")
 
+    # 検索API設定
+    google_search_api_key: Optional[str] = Field(
+        default=None, description="Google Search APIキー"
+    )
+    google_search_engine_id: Optional[str] = Field(
+        default=None, description="Google Custom Search Engine ID"
+    )
+    perplexity_api_key: Optional[str] = Field(
+        default=None, description="Perplexity APIキー"
+    )
+
     # ログ設定
     log_level: str = Field(default="INFO", description="ログレベル")
     log_dir: Optional[Path] = Field(

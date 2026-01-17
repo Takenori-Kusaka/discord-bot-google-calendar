@@ -8,6 +8,7 @@ from .butler import Butler
 from .clients.calendar import GoogleCalendarClient
 from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
+from .clients.event_search import EventSearchClient
 from .config.settings import get_settings
 from .scheduler.jobs import setup_scheduler
 from .utils.logger import get_logger, setup_logger
@@ -46,12 +47,26 @@ async def main():
         owner_id=settings.discord_owner_id,
     )
 
+    # イベント検索クライアント初期化（API設定がある場合のみ）
+    event_search_client = None
+    if settings.google_search_api_key and settings.google_search_engine_id:
+        event_search_client = EventSearchClient(
+            google_api_key=settings.google_search_api_key,
+            google_search_engine_id=settings.google_search_engine_id,
+            perplexity_api_key=settings.perplexity_api_key,
+            timezone=settings.timezone,
+        )
+        logger.info("Event search client initialized")
+    else:
+        logger.info("Event search client not configured (missing API keys)")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
         calendar_client=calendar_client,
         claude_client=claude_client,
         discord_client=discord_client,
+        event_search_client=event_search_client,
     )
 
     # スケジューラ設定
@@ -59,6 +74,9 @@ async def main():
         morning_job=butler.morning_notification,
         morning_hour=settings.morning_notification_hour,
         morning_minute=settings.morning_notification_minute,
+        weekly_job=butler.weekly_event_notification if event_search_client else None,
+        weekly_day=settings.weekly_event_day,
+        weekly_hour=settings.weekly_event_hour,
         timezone=settings.timezone,
     )
 

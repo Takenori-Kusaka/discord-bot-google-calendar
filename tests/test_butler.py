@@ -154,3 +154,68 @@ class TestButler:
 
         # Assert
         mock_discord_client.send_error_notification.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_weekly_event_notification_success(
+        self,
+        mock_settings,
+        mock_calendar_client,
+        mock_claude_client,
+        mock_discord_client,
+    ):
+        """週次イベント通知が正常に送信される"""
+        # Arrange
+        mock_settings.discord_channel_region = "地域のこと"
+        mock_event_search = AsyncMock()
+        mock_event_search.search_events.return_value = [
+            {"title": "高の原イベント", "snippet": "テスト"}
+        ]
+        mock_claude_client.extract_events_from_search.return_value = [
+            {"title": "お祭り", "date": "1/18(土)", "location": "高の原"}
+        ]
+        mock_claude_client.generate_event_recommendation.return_value = "週末のおすすめ"
+
+        with patch("src.butler.Path.exists", return_value=False):
+            butler = Butler(
+                settings=mock_settings,
+                calendar_client=mock_calendar_client,
+                claude_client=mock_claude_client,
+                discord_client=mock_discord_client,
+                event_search_client=mock_event_search,
+            )
+
+        # Act
+        await butler.weekly_event_notification()
+
+        # Assert
+        mock_event_search.search_events.assert_called_once()
+        mock_claude_client.extract_events_from_search.assert_called_once()
+        mock_claude_client.generate_event_recommendation.assert_called_once()
+        mock_discord_client.send_to_channel.assert_called_once_with(
+            "地域のこと", "週末のおすすめ"
+        )
+
+    @pytest.mark.asyncio
+    async def test_weekly_event_notification_no_client(
+        self,
+        mock_settings,
+        mock_calendar_client,
+        mock_claude_client,
+        mock_discord_client,
+    ):
+        """イベント検索クライアントがない場合は何もしない"""
+        # Arrange
+        with patch("src.butler.Path.exists", return_value=False):
+            butler = Butler(
+                settings=mock_settings,
+                calendar_client=mock_calendar_client,
+                claude_client=mock_claude_client,
+                discord_client=mock_discord_client,
+                event_search_client=None,
+            )
+
+        # Act
+        await butler.weekly_event_notification()
+
+        # Assert
+        mock_discord_client.send_to_channel.assert_not_called()
