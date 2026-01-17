@@ -361,7 +361,7 @@ class EventSearchClient:
             "Content-Type": "application/json",
         }
         payload = {
-            "model": "llama-3.1-sonar-small-128k-online",
+            "model": "sonar",  # 2025年以降の新モデル名
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.2,
         }
