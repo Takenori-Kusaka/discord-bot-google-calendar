@@ -232,9 +232,7 @@ class EventSearchClient:
                         if event:
                             results.append(event)
 
-                    logger.info(
-                        f"Scraped {len(results)} events from {source.name}"
-                    )
+                    logger.info(f"Scraped {len(results)} events from {source.name}")
 
         except asyncio.TimeoutError:
             logger.warning(f"Timeout scraping {source.name}")
