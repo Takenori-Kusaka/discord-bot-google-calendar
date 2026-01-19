@@ -70,6 +70,11 @@ class Settings(BaseSettings):
     # 執事設定
     butler_name: str = Field(default="黒田", description="執事の名前")
 
+    # エージェント設定
+    use_langgraph: bool = Field(
+        default=False, description="LangGraphエージェントを使用するかどうか"
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

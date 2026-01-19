@@ -1,10 +1,15 @@
-"""Butler Core - 執事「黒田」のコアロジック"""
+"""Butler Core - 執事「黒田」のコアロジック
+
+LangGraphモードが有効な場合は、LangGraphベースのエージェントを使用します。
+無効な場合は、既存のClaudeClient.chat_with_toolsを使用します。
+"""
 
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 
+from .agents.graph import run_butler_agent
 from .agents.tools import ToolExecutor, get_tool_definitions
 from .clients.calendar import CalendarEvent, GoogleCalendarClient
 from .clients.claude import ClaudeClient
@@ -35,6 +40,7 @@ class Butler:
         weather_client: Optional[WeatherClient] = None,
         today_info_client: Optional[TodayInfoClient] = None,
         life_info_client: Optional[LifeInfoClient] = None,
+        use_langgraph: bool = False,
     ):
         """初期化
 
@@ -47,6 +53,7 @@ class Butler:
             weather_client: 天気クライアント（オプション）
             today_info_client: 今日は何の日クライアント（オプション）
             life_info_client: 生活影響情報クライアント（オプション）
+            use_langgraph: LangGraphエージェントを使用するかどうか
         """
         self.settings = settings
         self.calendar = calendar_client
@@ -57,6 +64,7 @@ class Butler:
         self.today_info = today_info_client
         self.life_info = life_info_client
         self.name = settings.butler_name
+        self.use_langgraph = use_langgraph
 
         # フィルタリングルールを読み込み
         self.ignore_patterns = self._load_rules("config/ignore_rules.yml")
@@ -82,7 +90,11 @@ class Butler:
         # Discordメッセージハンドラを登録
         self.discord.set_message_handler(self.handle_message)
 
-        logger.info(f"執事「{self.name}」、準備完了でございます。（ツール数: {len(self.tools)}）")
+        mode = "LangGraph" if self.use_langgraph else "Claude直接"
+        logger.info(
+            f"執事「{self.name}」、準備完了でございます。"
+            f"（ツール数: {len(self.tools)}、モード: {mode}）"
+        )
 
     def _load_rules(self, path: str) -> list[str]:
         """ルールファイルを読み込み
@@ -320,25 +332,36 @@ class Butler:
         Returns:
             str: 応答メッセージ
         """
+        mode = "LangGraph" if self.use_langgraph else "Claude直接"
         logger.info(
-            "Handling message with tools",
+            "Handling message",
             message_length=len(message),
             channel=channel,
+            mode=mode,
         )
 
         try:
             # 家族情報コンテキストを取得
             family_context = self._get_family_context()
 
-            # ツールを使用したClaude対話
-            response = await self.claude.chat_with_tools(
-                message=message,
-                channel=channel,
-                tools=self.tools,
-                tool_executor=self.tool_executor,
-                butler_name=self.name,
-                family_context=family_context,
-            )
+            if self.use_langgraph:
+                # LangGraphエージェントを使用
+                response = await run_butler_agent(
+                    message=message,
+                    tool_executor=self.tool_executor,
+                    butler_name=self.name,
+                    user_context={"family_context": family_context},
+                )
+            else:
+                # 既存のClaudeClient.chat_with_toolsを使用
+                response = await self.claude.chat_with_tools(
+                    message=message,
+                    channel=channel,
+                    tools=self.tools,
+                    tool_executor=self.tool_executor,
+                    butler_name=self.name,
+                    family_context=family_context,
+                )
 
             logger.info("Message handled successfully", response_length=len(response))
             return response

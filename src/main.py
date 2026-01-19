@@ -85,6 +85,7 @@ async def main():
         weather_client=weather_client,
         today_info_client=today_info_client,
         life_info_client=life_info_client,
+        use_langgraph=settings.use_langgraph,
     )
 
     # スケジューラ設定
