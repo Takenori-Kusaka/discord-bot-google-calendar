@@ -1,17 +1,25 @@
 """地域イベント検索クライアント"""
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import aiohttp
 import yaml
 from bs4 import BeautifulSoup
-from zoneinfo import ZoneInfo
 
 from ..utils.logger import get_logger
+
+# Playwright は動的サイト用にオプションでインポート
+try:
+    from playwright.async_api import async_playwright
+
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PLAYWRIGHT_AVAILABLE = False
 
 logger = get_logger(__name__)
 
@@ -38,6 +46,16 @@ class EventSource:
     enabled: bool
     priority: int
     selectors: dict
+    dynamic: bool = False  # 動的サイト（Vue.js等）フラグ
+    wait_time: int = 3  # 動的サイトの描画待機時間（秒）
+
+
+@dataclass
+class ReferenceLink:
+    """参考リンク"""
+
+    name: str
+    url: str
 
 
 class EventSearchClient:
@@ -71,6 +89,7 @@ class EventSearchClient:
 
         # 設定を読み込み
         self.sources: list[EventSource] = []
+        self.reference_links: list[ReferenceLink] = []
         self.scraping_config: dict = {}
         self.filtering_config: dict = {}
         self._load_config()
@@ -98,8 +117,19 @@ class EventSearchClient:
                                 enabled=source_data.get("enabled", True),
                                 priority=source_data.get("priority", 5),
                                 selectors=source_data.get("selectors", {}),
+                                dynamic=source_data.get("dynamic", False),
+                                wait_time=source_data.get("wait_time", 3),
                             )
                         )
+
+                # 参考リンクを読み込み
+                for link_data in config.get("reference_links", []):
+                    self.reference_links.append(
+                        ReferenceLink(
+                            name=link_data["name"],
+                            url=link_data["url"],
+                        )
+                    )
 
                 # スクレイピング設定
                 self.scraping_config = config.get("scraping", {})
@@ -184,8 +214,22 @@ class EventSearchClient:
         source: EventSource,
         timeout: int,
     ) -> list[dict]:
-        """単一ソースからスクレイピング"""
+        """単一ソースからスクレイピング（動的/静的サイト対応）"""
+        if source.dynamic:
+            # 動的サイト（Vue.js等）はPlaywrightで処理
+            return await self._scrape_dynamic_source(source, timeout)
+        else:
+            # 静的サイトはBeautifulSoupで処理
+            return await self._scrape_static_source(source, timeout)
+
+    async def _scrape_static_source(
+        self,
+        source: EventSource,
+        timeout: int,
+    ) -> list[dict]:
+        """静的サイトからBeautifulSoupでスクレイピング"""
         import ssl
+
         import certifi
 
         results = []
@@ -232,12 +276,74 @@ class EventSearchClient:
                         if event:
                             results.append(event)
 
-                    logger.info(f"Scraped {len(results)} events from {source.name}")
+                    logger.info(
+                        f"Scraped {len(results)} events from {source.name} (static)"
+                    )
 
         except asyncio.TimeoutError:
             logger.warning(f"Timeout scraping {source.name}")
         except Exception as e:
             logger.warning(f"Error scraping {source.name}: {e}")
+
+        return results
+
+    async def _scrape_dynamic_source(
+        self,
+        source: EventSource,
+        timeout: int,
+    ) -> list[dict]:
+        """動的サイト（Vue.js等）からPlaywrightでスクレイピング"""
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.warning(
+                f"Playwright not available, skipping dynamic source: {source.name}"
+            )
+            return []
+
+        results = []
+
+        try:
+            async with async_playwright() as p:
+                # headlessモードでChromiumを起動
+                browser = await p.chromium.launch(headless=True)
+                page = await browser.new_page()
+
+                try:
+                    logger.info(f"Playwright: loading {source.name} ({source.url})")
+
+                    # ページを読み込み
+                    await page.goto(
+                        source.url,
+                        wait_until="load",
+                        timeout=timeout * 1000,
+                    )
+
+                    # Vue.js等のJSフレームワークがDOMを描画するのを待つ
+                    await asyncio.sleep(source.wait_time)
+
+                    # HTMLを取得してBeautifulSoupでパース
+                    html_content = await page.content()
+                    soup = BeautifulSoup(html_content, "html.parser")
+
+                    # コンテナセレクタでイベント要素を取得
+                    container_selector = source.selectors.get("container", "article")
+                    containers = soup.select(container_selector)[:10]  # 最大10件
+
+                    for container in containers:
+                        event = self._extract_event_from_element(container, source)
+                        if event:
+                            results.append(event)
+
+                    logger.info(
+                        f"Scraped {len(results)} events from {source.name} (dynamic)"
+                    )
+
+                finally:
+                    await browser.close()
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout scraping dynamic source {source.name}")
+        except Exception as e:
+            logger.warning(f"Error scraping dynamic source {source.name}: {e}")
 
         return results
 
@@ -382,3 +488,26 @@ class EventSearchClient:
                         "query": "週末イベント総合検索",
                     }
                 ]
+
+    def get_reference_links(self) -> list[dict]:
+        """参考リンクを取得
+
+        Returns:
+            参考リンクのリスト [{"name": "...", "url": "..."}]
+        """
+        return [{"name": link.name, "url": link.url} for link in self.reference_links]
+
+    def format_reference_links(self) -> str:
+        """参考リンクを通知用にフォーマット
+
+        Returns:
+            フォーマットされた参考リンク文字列
+        """
+        if not self.reference_links:
+            return ""
+
+        lines = ["", "📎 **もっとイベントを探す**"]
+        for link in self.reference_links:
+            lines.append(f"• [{link.name}]({link.url})")
+
+        return "\n".join(lines)

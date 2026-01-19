@@ -206,32 +206,59 @@
 
 ## ロードマップ
 
-### Phase 1: MVP（朝の予定通知）
+### Phase 1: MVP（朝の予定通知）✅ 完了
 - [x] 要件定義
-- [ ] アーキテクチャ設計
-- [ ] Google Calendar API連携
-- [ ] Discord Bot実装
-- [ ] スケジューラ設定
-- [ ] Docker化
-- [ ] デプロイ
+- [x] アーキテクチャ設計
+- [x] Google Calendar API連携
+- [x] Discord Bot実装
+- [x] Claude APIによる予定フィルタリング・メッセージ生成
+- [x] スケジューラ設定（毎朝6:00）
+- [x] Docker化
+- [x] NUCサーバーへデプロイ
 
-### Phase 2: 地域イベント情報
-- [ ] スクレイピング対象の調査
-- [ ] スクレイピング実装
-- [ ] LLM抽出ロジック
-- [ ] 検索API連携
-- [ ] 適性判断ロジック
+### Phase 2: 地域イベント情報 ✅ 完了
+- [x] スクレイピング対象の調査（8サイト設定）
+- [x] 静的サイトスクレイピング（BeautifulSoup）
+- [x] 動的サイトスクレイピング（Playwright）
+- [x] LLM抽出ロジック（Claude API）
+- [x] Google Custom Search API連携
+- [x] Perplexity API連携
+- [x] 家族構成に合わせた適性判断ロジック
+- [x] 参考リンク付き通知（毎週金曜18:00）
 
-### Phase 3: インタラクティブ対応
-- [ ] Discord問い合わせ対応
-- [ ] 家族情報管理
-- [ ] 会話履歴管理
+### Phase 3: インタラクティブ対応 ✅ 完了
+- [x] Discord問い合わせ対応（メンションまたは「黒田」で反応）
+- [x] 家族情報管理（docs/personal/data/family.yml）
+- [x] 会話履歴管理（チャンネルごとに最大10件保持）
 
-### Phase 4: 拡張機能
-- [ ] 天気予報
-- [ ] レストラン検索
-- [ ] ニュース
-- [ ] Home Assistant連携（将来）
+### Phase 4: 拡張機能 ✅ 完了
+- [x] 天気予報（OpenMeteo API - 木津川市）
+- [x] 「今日は何の日」情報（朝の通知に追加）
+- [x] 生活影響情報（e-Gov法令API + 信頼性スコアリング）
+  - e-Gov法令API V1連携（家族関連法令120件以上）
+  - 木津川市子育てサイト監視
+  - 5段階信頼性スコア（官報確認〜要確認）
+  - 毎週月曜9:00に通知
+- ~~レストラン検索~~ → Phase 5でエージェント経由に移行
+- ~~地域ニュース~~ → 生活影響情報に変更
+
+### Phase 5: エージェント機能 ✅ 完了
+- [x] Tool Use基盤（Claude Function Calling）
+- [x] ツール実行器（ToolExecutor）実装
+- [x] 対話型ツール実装（6種類）
+  - get_calendar_events: カレンダー予定確認
+  - get_weather: 天気予報取得
+  - search_events: 地域イベント検索
+  - get_life_info: 生活影響情報確認
+  - get_today_info: 今日は何の日
+  - get_family_info: 家族情報参照（ゴミ出し等）
+- [x] Butler統合（handle_messageでツール使用対話）
+- [ ] オーケストレーション設計（LangGraph - 将来拡張）
+- [ ] マルチエージェント構成（将来拡張）
+
+### Phase 6: 将来拡張
+- [ ] Home Assistant連携
+- [ ] 音声アシスタント連携
 
 ---
 
@@ -246,4 +273,4 @@
 
 ---
 
-*最終更新: 2026-01-14*
+*最終更新: 2026-01-19*

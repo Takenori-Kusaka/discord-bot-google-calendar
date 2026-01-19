@@ -170,6 +170,8 @@ class TestButler:
         mock_event_search.search_events.return_value = [
             {"title": "高の原イベント", "snippet": "テスト"}
         ]
+        # format_reference_linksは同期メソッドなのでMagicMock()を使用
+        mock_event_search.format_reference_links = MagicMock(return_value="")
         mock_claude_client.extract_events_from_search.return_value = [
             {"title": "お祭り", "date": "1/18(土)", "location": "高の原"}
         ]

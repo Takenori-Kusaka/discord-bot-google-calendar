@@ -30,6 +30,9 @@ htmlcov/
 .tox/
 .nox/
 
+# Legacy test scripts (experimental, not for production)
+tests_legacy/
+
 # Build
 build/
 dist/

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://langchain-ai.github.io/langgraph/langgraph.schema.json",
+  "graphs": {
+    "butler": {
+      "path": "./src/agents/graph.py:compile_butler_graph"
+    }
+  },
+  "env": ".env",
+  "dependencies": [
+    "."
+  ]
+}

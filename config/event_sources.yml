@@ -2,11 +2,12 @@
 # 各サイトのスクレイピングルールを定義
 
 sources:
-  # けいはんなプラザ
+  # けいはんなプラザ（静的）
   - name: "けいはんなプラザ"
     url: "https://www.keihanna-plaza.co.jp/event/"
     enabled: true
     priority: 1
+    dynamic: false
     selectors:
       container: "article, .event-item, .event-list li"
       title: "h2, h3, .event-title, .title"
@@ -14,23 +15,26 @@ sources:
       description: ".description, .summary, p"
       link: "a"
 
-  # 高の原イオン
+  # 高の原イオン（動的: Vue.js）
   - name: "高の原イオン"
     url: "https://www.aeon.jp/sc/takanohara/event/"
     enabled: true
     priority: 1
+    dynamic: true
+    wait_time: 3
     selectors:
-      container: ".event-item, .event-list li, article"
-      title: "h2, h3, .event-title"
-      date: ".date, .period, time"
-      description: ".description, .text, p"
+      container: ".item, [class*='event'], article"
+      title: "h3, h2, .title, a"
+      date: ".date, [class*='date'], time"
+      description: ".description, p"
       link: "a"
 
-  # アスピアやましろ
+  # アスピアやましろ（静的）
   - name: "アスピアやましろ"
     url: "https://www.nem-shiteikanri.jp/shisetsu/aspia/cgi-bin/event_wn/list.cgi"
     enabled: true
     priority: 2
+    dynamic: false
     selectors:
       container: "tr, .event-item, li"
       title: "td:nth-child(2), .title, a"
@@ -38,11 +42,12 @@ sources:
       description: "td:nth-child(3), .description"
       link: "a"
 
-  # 奈良市観光協会
+  # 奈良市観光協会（静的）
   - name: "奈良市観光協会"
     url: "https://narashikanko.or.jp/event/"
     enabled: true
     priority: 1
+    dynamic: false
     selectors:
       container: "article, .event-card, .event-item"
       title: "h2, h3, .title"
@@ -50,23 +55,25 @@ sources:
       description: ".excerpt, .description, p"
       link: "a"
 
-  # ガーデンモール木津川
+  # ガーデンモール木津川（静的）
   - name: "ガーデンモール木津川"
     url: "http://gardenmall-kizugawa.com/eventlist.html"
     enabled: true
     priority: 2
+    dynamic: false
     selectors:
-      container: ".event, .event-item, li"
-      title: "h2, h3, .title, a"
-      date: ".date, .period"
-      description: ".description, p"
+      container: ".event, .event-item, li, table tr"
+      title: "h2, h3, .title, a, td"
+      date: ".date, .period, td"
+      description: ".description, p, td"
       link: "a"
 
-  # 京田辺・木津川ゴーガイネット
+  # 京田辺・木津川ゴーガイネット（静的）
   - name: "京田辺・木津川ゴーガイネット"
     url: "https://kyotanabekizugawa.goguynet.jp/category/cat_event/"
     enabled: true
     priority: 2
+    dynamic: false
     selectors:
       container: "article, .post, .event-item"
       title: "h2, h3, .entry-title"
@@ -74,11 +81,12 @@ sources:
       description: ".excerpt, .entry-summary, p"
       link: "a"
 
-  # アルコ宇治
+  # アルコ宇治（静的）
   - name: "アルコ宇治"
     url: "https://alco-uj.com/category/event/"
     enabled: true
     priority: 3
+    dynamic: false
     selectors:
       container: "article, .post, .event-item"
       title: "h2, h3, .entry-title"
@@ -86,16 +94,18 @@ sources:
       description: ".excerpt, p"
       link: "a"
 
-  # ウォーカープラス奈良
+  # ウォーカープラス奈良（動的の可能性）
   - name: "ウォーカープラス奈良"
-    url: "https://www.walkerplus.com/event_list/ar0729201/nara/"
+    url: "https://www.walkerplus.com/event_list/ar0729/nara/"
     enabled: true
     priority: 1
+    dynamic: true
+    wait_time: 2
     selectors:
-      container: ".m-event-card, .event-item, article"
-      title: "h2, h3, .m-event-card__title"
+      container: ".m-event-card, .event-item, article, li"
+      title: "h2, h3, .m-event-card__title, a"
       date: ".date, .m-event-card__date"
-      description: ".description, .m-event-card__text"
+      description: ".description, .m-event-card__text, p"
       link: "a"
 
 # スクレイピング設定
@@ -108,6 +118,10 @@ scraping:
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
   # 最大リトライ回数
   max_retries: 3
+  # Playwright設定
+  playwright:
+    headless: true
+    default_wait_time: 3
 
 # フィルタリング設定
 filtering:
@@ -128,3 +142,18 @@ filtering:
     - "中止"
     - "延期"
     - "終了"
+
+# 参考リンク（通知に追加）
+reference_links:
+  - name: "けいはんなプラザ"
+    url: "https://www.keihanna-plaza.co.jp/event/"
+  - name: "高の原イオン"
+    url: "https://www.aeon.jp/sc/takanohara/event/"
+  - name: "アスピアやましろ"
+    url: "https://www.nem-shiteikanri.jp/shisetsu/aspia/cgi-bin/event_wn/list.cgi"
+  - name: "奈良市観光協会"
+    url: "https://narashikanko.or.jp/event/"
+  - name: "ガーデンモール木津川"
+    url: "http://gardenmall-kizugawa.com/eventlist.html"
+  - name: "ウォーカープラス奈良"
+    url: "https://www.walkerplus.com/event_list/ar0729/nara/"

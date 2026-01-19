@@ -1,5 +1,7 @@
 """Discord クライアント"""
 
+from typing import Callable, Optional
+
 import discord
 from discord.ext import commands
 
@@ -28,6 +30,9 @@ class DiscordClient:
         self.guild_id = guild_id
         self.owner_id = owner_id
 
+        # メッセージハンドラ（Butlerから設定）
+        self._message_handler: Optional[Callable] = None
+
         # Botインスタンス作成
         intents = discord.Intents.default()
         intents.message_content = True
@@ -41,6 +46,15 @@ class DiscordClient:
         self._setup_events()
         logger.info("Discord client initialized", guild_id=guild_id)
 
+    def set_message_handler(self, handler: Callable) -> None:
+        """メッセージハンドラを設定
+
+        Args:
+            handler: メッセージ処理関数 (message: str, channel: str) -> str
+        """
+        self._message_handler = handler
+        logger.info("Message handler registered")
+
     def _setup_events(self):
         """イベントハンドラを設定"""
 
@@ -51,6 +65,65 @@ class DiscordClient:
                 user=str(self.bot.user),
                 guilds=len(self.bot.guilds),
             )
+
+        @self.bot.event
+        async def on_message(message: discord.Message):
+            # Bot自身のメッセージは無視
+            if message.author == self.bot.user:
+                return
+
+            # 対象サーバーのメッセージのみ処理
+            if message.guild and message.guild.id != self.guild_id:
+                return
+
+            # Botへのメンションまたは「黒田」を含むメッセージに反応
+            bot_mentioned = self.bot.user in message.mentions
+            butler_called = "黒田" in message.content
+
+            if not (bot_mentioned or butler_called):
+                return
+
+            # メッセージハンドラが設定されていない場合
+            if not self._message_handler:
+                logger.warning("Message handler not set")
+                return
+
+            try:
+                # メンションを除去してメッセージを取得
+                content = message.content
+                if self.bot.user:
+                    content = content.replace(f"<@{self.bot.user.id}>", "").strip()
+                content = content.replace("黒田", "").strip()
+
+                if not content:
+                    content = "何かお手伝いできることはございますか？"
+
+                logger.info(
+                    "Processing message",
+                    author=str(message.author),
+                    channel=(
+                        message.channel.name
+                        if hasattr(message.channel, "name")
+                        else "DM"
+                    ),
+                    content_length=len(content),
+                )
+
+                # Butlerで処理
+                channel_name = (
+                    message.channel.name if hasattr(message.channel, "name") else "dm"
+                )
+                response = await self._message_handler(content, channel_name)
+
+                # 応答を送信
+                await message.reply(response)
+
+            except Exception as e:
+                logger.error("Error handling message", error=str(e))
+                await message.reply(
+                    "恐れ入ります、処理中にエラーが発生いたしました。"
+                    "しばらくしてから再度お試しくださいませ。"
+                )
 
         @self.bot.event
         async def on_error(event, *args, **kwargs):

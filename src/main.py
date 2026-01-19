@@ -9,6 +9,9 @@ from .clients.calendar import GoogleCalendarClient
 from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
+from .clients.life_info import LifeInfoClient
+from .clients.today_info import TodayInfoClient
+from .clients.weather import WeatherClient
 from .config.settings import get_settings
 from .scheduler.jobs import setup_scheduler
 from .utils.logger import get_logger, setup_logger
@@ -60,6 +63,18 @@ async def main():
     else:
         logger.info("Event search client not configured (missing API keys)")
 
+    # 天気クライアント初期化
+    weather_client = WeatherClient(timezone=settings.timezone)
+    logger.info("Weather client initialized")
+
+    # 今日は何の日クライアント初期化
+    today_info_client = TodayInfoClient(timezone=settings.timezone)
+    logger.info("TodayInfo client initialized")
+
+    # 生活影響情報クライアント初期化
+    life_info_client = LifeInfoClient(timezone=settings.timezone)
+    logger.info("LifeInfo client initialized")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -67,6 +82,9 @@ async def main():
         claude_client=claude_client,
         discord_client=discord_client,
         event_search_client=event_search_client,
+        weather_client=weather_client,
+        today_info_client=today_info_client,
+        life_info_client=life_info_client,
     )
 
     # スケジューラ設定
@@ -77,6 +95,9 @@ async def main():
         weekly_job=butler.weekly_event_notification if event_search_client else None,
         weekly_day=settings.weekly_event_day,
         weekly_hour=settings.weekly_event_hour,
+        life_info_job=butler.weekly_life_info_notification,
+        life_info_day=getattr(settings, "life_info_day", "mon"),
+        life_info_hour=getattr(settings, "life_info_hour", 9),
         timezone=settings.timezone,
     )
 

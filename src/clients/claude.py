@@ -1,7 +1,9 @@
 """Claude API クライアント"""
 
 import json
-from typing import Any
+from collections import deque
+from datetime import datetime
+from typing import Any, Optional
 
 import anthropic
 
@@ -9,6 +11,9 @@ from ..utils.logger import get_logger
 from .calendar import CalendarEvent
 
 logger = get_logger(__name__)
+
+# 会話履歴の最大保持数
+MAX_CONVERSATION_HISTORY = 10
 
 
 class ClaudeClient:
@@ -23,7 +28,35 @@ class ClaudeClient:
         """
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
+
+        # 会話履歴（チャンネルごとに管理）
+        self._conversation_history: dict[str, deque] = {}
+
         logger.info("Claude client initialized", model=model)
+
+    def _get_conversation_history(self, channel: str) -> deque:
+        """チャンネルの会話履歴を取得"""
+        if channel not in self._conversation_history:
+            self._conversation_history[channel] = deque(maxlen=MAX_CONVERSATION_HISTORY)
+        return self._conversation_history[channel]
+
+    def _add_to_history(self, channel: str, role: str, content: str) -> None:
+        """会話履歴に追加"""
+        history = self._get_conversation_history(channel)
+        history.append({"role": role, "content": content})
+
+    def clear_conversation_history(self, channel: Optional[str] = None) -> None:
+        """会話履歴をクリア
+
+        Args:
+            channel: クリアするチャンネル（Noneの場合は全チャンネル）
+        """
+        if channel:
+            if channel in self._conversation_history:
+                self._conversation_history[channel].clear()
+        else:
+            self._conversation_history.clear()
+        logger.info("Conversation history cleared", channel=channel)
 
     async def filter_important_events(
         self,
@@ -327,3 +360,247 @@ JSON配列で出力してください。イベントが見つからない場合�
 {event_list}
 
 詳細はリンク先をご確認くださいませ。"""
+
+    async def chat(
+        self,
+        message: str,
+        channel: str,
+        butler_name: str = "黒田",
+        family_context: Optional[str] = None,
+    ) -> str:
+        """対話形式でメッセージに応答
+
+        Args:
+            message: ユーザーからのメッセージ
+            channel: チャンネル名（会話履歴管理用）
+            butler_name: 執事の名前
+            family_context: 家族情報コンテキスト
+
+        Returns:
+            str: 執事からの応答
+        """
+        # システムプロンプト
+        system_prompt = f"""あなたは日下家に仕える執事「{butler_name}」です。
+
+## あなたの役割
+- 日下家の生活を総合的にサポートする執事
+- 丁寧で品のある執事口調で応答
+- 家族の喜びを自分の喜びとするホスピタリティ
+
+## 口調の例
+- 「かしこまりました。」
+- 「恐れ入りますが、〜でございます。」
+- 「ただいまお調べいたします。」
+- 「どうぞご安心くださいませ。」
+
+## 家族構成
+- 旦那様（35歳、男性）
+- 奥様（34歳、女性）
+- お嬢様（4歳、女児）
+- 坊ちゃま（0歳、男児）
+
+## 地域情報
+- 居住地: 京都府木津川市
+- 近隣: 奈良市、精華町、高の原、けいはんな
+
+{f"## 追加コンテキスト{chr(10)}{family_context}" if family_context else ""}
+
+## 応答ルール
+1. 簡潔に応答（200文字程度）
+2. 絵文字は使用しない
+3. 不明な点は正直に「存じ上げません」と答える
+4. 危険な内容や不適切な依頼は丁重にお断りする
+5. 今日は{datetime.now().strftime('%Y年%m月%d日(%A)')}です
+"""
+
+        # 会話履歴を取得
+        history = self._get_conversation_history(channel)
+        messages = list(history)
+
+        # 新しいメッセージを追加
+        messages.append({"role": "user", "content": message})
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=messages,
+            )
+
+            assistant_message = response.content[0].text
+
+            # 会話履歴に追加
+            self._add_to_history(channel, "user", message)
+            self._add_to_history(channel, "assistant", assistant_message)
+
+            logger.info(
+                "Chat response generated",
+                channel=channel,
+                input_length=len(message),
+                output_length=len(assistant_message),
+            )
+
+            return assistant_message
+
+        except Exception as e:
+            logger.error("Failed to generate chat response", error=str(e))
+            return (
+                f"恐れ入ります、執事の{butler_name}でございます。"
+                "ただいま処理に問題が発生いたしました。"
+                "しばらくしてから再度お申し付けくださいませ。"
+            )
+
+    async def chat_with_tools(
+        self,
+        message: str,
+        channel: str,
+        tools: list[dict],
+        tool_executor,  # ToolExecutor
+        butler_name: str = "黒田",
+        family_context: Optional[str] = None,
+        max_iterations: int = 5,
+    ) -> str:
+        """ツールを使用した対話形式でメッセージに応答
+
+        Args:
+            message: ユーザーからのメッセージ
+            channel: チャンネル名（会話履歴管理用）
+            tools: ツール定義のリスト
+            tool_executor: ツール実行器
+            butler_name: 執事の名前
+            family_context: 家族情報コンテキスト
+            max_iterations: ツール実行の最大反復回数
+
+        Returns:
+            str: 執事からの応答
+        """
+        # システムプロンプト
+        system_prompt = f"""あなたは日下家に仕える執事「{butler_name}」です。
+
+## あなたの役割
+- 日下家の生活を総合的にサポートする執事
+- 丁寧で品のある執事口調で応答
+- 家族の喜びを自分の喜びとするホスピタリティ
+- 必要に応じてツールを使用して情報を取得
+
+## 口調の例
+- 「かしこまりました。ただいまお調べいたします。」
+- 「恐れ入りますが、〜でございます。」
+- 「どうぞご安心くださいませ。」
+
+## 家族構成
+- 旦那様（35歳、男性）
+- 奥様（34歳、女性）
+- お嬢様（4歳、女児）
+- 坊ちゃま（0歳、男児）
+
+## 地域情報
+- 居住地: 京都府木津川市
+- 近隣: 奈良市、精華町、高の原、けいはんな
+
+{f"## 追加コンテキスト{chr(10)}{family_context}" if family_context else ""}
+
+## ツール使用ガイドライン
+- 予定の確認 → get_calendar_events
+- 天気予報 → get_weather
+- 地域イベント → search_events
+- 法改正・制度情報 → get_life_info
+- 今日は何の日 → get_today_info
+- ごみ出し・家族情報 → get_family_info
+
+## 応答ルール
+1. ツールで取得した情報を基に応答
+2. 簡潔に応答（300文字程度）
+3. 絵文字は使用しない
+4. 不明な点は正直に「存じ上げません」と答える
+5. 今日は{datetime.now().strftime('%Y年%m月%d日(%A)')}です
+"""
+
+        # 会話履歴を取得
+        history = self._get_conversation_history(channel)
+        messages = list(history)
+        messages.append({"role": "user", "content": message})
+
+        iteration = 0
+        while iteration < max_iterations:
+            iteration += 1
+
+            try:
+                # Claude APIにツール付きで送信
+                response = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=2048,
+                    system=system_prompt,
+                    tools=tools,
+                    messages=messages,
+                )
+
+                # レスポンスの終了理由を確認
+                if response.stop_reason == "end_turn":
+                    # 通常の応答（ツール呼び出しなし）
+                    text_content = ""
+                    for block in response.content:
+                        if hasattr(block, "text"):
+                            text_content += block.text
+
+                    # 会話履歴に追加
+                    self._add_to_history(channel, "user", message)
+                    self._add_to_history(channel, "assistant", text_content)
+
+                    logger.info(
+                        "Chat with tools completed",
+                        channel=channel,
+                        iterations=iteration,
+                        output_length=len(text_content),
+                    )
+
+                    return text_content
+
+                elif response.stop_reason == "tool_use":
+                    # ツール呼び出しを処理
+                    assistant_content = response.content
+                    messages.append({"role": "assistant", "content": assistant_content})
+
+                    # ツールを実行
+                    tool_results = []
+                    for block in assistant_content:
+                        if block.type == "tool_use":
+                            logger.info(
+                                f"Executing tool: {block.name}",
+                                tool_input=block.input,
+                            )
+
+                            result = await tool_executor.execute(
+                                tool_name=block.name,
+                                tool_input=block.input,
+                                tool_use_id=block.id,
+                            )
+
+                            tool_results.append(
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": result.tool_use_id,
+                                    "content": result.content,
+                                    "is_error": result.is_error,
+                                }
+                            )
+
+                    # ツール結果をメッセージに追加
+                    messages.append({"role": "user", "content": tool_results})
+
+                else:
+                    # 予期しない終了理由
+                    logger.warning(f"Unexpected stop reason: {response.stop_reason}")
+                    break
+
+            except Exception as e:
+                logger.error(f"Error in chat_with_tools iteration {iteration}", error=str(e))
+                break
+
+        # エラー時のフォールバック
+        return (
+            f"恐れ入ります、執事の{butler_name}でございます。"
+            "ただいま処理に問題が発生いたしました。"
+            "しばらくしてから再度お申し付けくださいませ。"
+        )
