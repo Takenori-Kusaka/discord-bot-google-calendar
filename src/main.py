@@ -4,6 +4,11 @@ import asyncio
 import signal
 import sys
 
+from dotenv import load_dotenv
+
+# .envファイルをos.environに読み込む（LangChain等が環境変数を参照するため）
+load_dotenv()
+
 from .butler import Butler
 from .clients.calendar import GoogleCalendarClient
 from .clients.claude import ClaudeClient
