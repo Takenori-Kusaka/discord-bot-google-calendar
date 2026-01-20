@@ -182,11 +182,9 @@ class ButlerGraphConfig:
         self.model = model
         self.max_retries = max_retries
 
-        # LLMを初期化
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        # LLMを初期化（環境変数ANTHROPIC_API_KEYを自動的に使用）
         self.llm = ChatAnthropic(
             model=model,
-            api_key=api_key,
             max_tokens=2048,
         )
 
