@@ -34,7 +34,7 @@ async def test_calendar():
     events = await calendar_client.get_today_events()
     print(f"Found {len(events)} events for today:", flush=True)
     for e in events:
-        time_str = e.start_time.strftime("%H:%M") if e.start_time else "終日"
+        time_str = e.start.strftime("%H:%M") if not e.all_day else "終日"
         print(f"  - {time_str}: {e.summary}", flush=True)
 
     return events

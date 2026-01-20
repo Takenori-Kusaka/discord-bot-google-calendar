@@ -194,7 +194,7 @@ class ToolExecutor:
 
         lines = [f"【{date_range}の予定】"]
         for event in events:
-            time_str = event.start_time.strftime("%H:%M") if event.start_time else "終日"
+            time_str = event.start.strftime("%H:%M") if not event.all_day else "終日"
             lines.append(f"- {time_str}: {event.summary}")
 
         return "\n".join(lines)
