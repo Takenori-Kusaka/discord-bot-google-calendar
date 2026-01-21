@@ -79,6 +79,40 @@ TOOL_DEFINITIONS = [
             "required": ["category"],
         },
     },
+    {
+        "name": "create_calendar_event",
+        "description": "Googleカレンダーに新しい予定を登録します。日時、タイトル、場所などを指定できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "summary": {
+                    "type": "string",
+                    "description": "予定のタイトル",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "予定の日付（YYYY-MM-DD形式、例: 2026-01-25）",
+                },
+                "start_time": {
+                    "type": "string",
+                    "description": "開始時刻（HH:MM形式、例: 14:30）。省略時は終日予定になります。",
+                },
+                "end_time": {
+                    "type": "string",
+                    "description": "終了時刻（HH:MM形式、例: 15:30）。省略時は開始から1時間後になります。",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "予定の説明（任意）",
+                },
+                "location": {
+                    "type": "string",
+                    "description": "場所（任意）",
+                },
+            },
+            "required": ["summary", "date"],
+        },
+    },
 ]
 
 
@@ -131,6 +165,7 @@ class ToolExecutor:
             "get_life_info": self._get_life_info,
             "get_today_info": self._get_today_info,
             "get_family_info": self._get_family_info,
+            "create_calendar_event": self._create_calendar_event,
         }
 
         logger.info("Tool executor initialized")
@@ -330,6 +365,80 @@ class ToolExecutor:
                     lines.append(f"- {place.get('name', '')}: {place.get('type', '')}")
 
             return "\n".join(lines) if lines else "家族情報が設定されていません。"
+
+    async def _create_calendar_event(self, tool_input: dict) -> str:
+        """カレンダー予定を作成"""
+        if not self.calendar_client:
+            return "カレンダークライアントが設定されていません。"
+
+        summary = tool_input.get("summary")
+        date_str = tool_input.get("date")
+        start_time_str = tool_input.get("start_time")
+        end_time_str = tool_input.get("end_time")
+        description = tool_input.get("description")
+        location = tool_input.get("location")
+
+        if not summary:
+            return "予定のタイトルを指定してください。"
+        if not date_str:
+            return "予定の日付を指定してください。"
+
+        try:
+            # 日付をパース
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            date = date.replace(tzinfo=ZoneInfo(self.timezone))
+
+            # 終日予定かどうか
+            all_day = start_time_str is None
+
+            if all_day:
+                start = date
+                end = None
+            else:
+                # 開始時刻をパース
+                start_time = datetime.strptime(start_time_str, "%H:%M").time()
+                start = datetime.combine(date.date(), start_time)
+                start = start.replace(tzinfo=ZoneInfo(self.timezone))
+
+                # 終了時刻をパース（省略時はNone）
+                if end_time_str:
+                    end_time = datetime.strptime(end_time_str, "%H:%M").time()
+                    end = datetime.combine(date.date(), end_time)
+                    end = end.replace(tzinfo=ZoneInfo(self.timezone))
+                else:
+                    end = None
+
+            # イベント作成
+            event = await self.calendar_client.create_event(
+                summary=summary,
+                start=start,
+                end=end,
+                description=description,
+                location=location,
+                all_day=all_day,
+            )
+
+            # 成功メッセージ
+            if all_day:
+                time_info = f"{date_str}（終日）"
+            else:
+                time_info = f"{date_str} {start_time_str}"
+                if end_time_str:
+                    time_info += f"〜{end_time_str}"
+
+            result = f"予定を登録しました。\n\n【登録内容】\n- タイトル: {summary}\n- 日時: {time_info}"
+            if location:
+                result += f"\n- 場所: {location}"
+            if description:
+                result += f"\n- 説明: {description}"
+
+            return result
+
+        except ValueError as e:
+            return f"日時の形式が正しくありません: {str(e)}\n日付はYYYY-MM-DD形式、時刻はHH:MM形式で指定してください。"
+        except Exception as e:
+            logger.error("Failed to create calendar event", error=str(e))
+            return f"予定の登録に失敗しました: {str(e)}"
 
 
 def get_tool_definitions() -> list[dict]:

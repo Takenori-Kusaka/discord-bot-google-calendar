@@ -53,7 +53,8 @@ class CalendarEvent:
 class GoogleCalendarClient:
     """Google Calendar API クライアント"""
 
-    SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+    # 読み書き両方の権限を持つスコープ
+    SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
     def __init__(
         self,
@@ -175,3 +176,91 @@ class GoogleCalendarClient:
             location=event.get("location"),
             all_day=all_day,
         )
+
+    async def create_event(
+        self,
+        summary: str,
+        start: datetime,
+        end: datetime | None = None,
+        description: str | None = None,
+        location: str | None = None,
+        all_day: bool = False,
+    ) -> CalendarEvent:
+        """予定を作成
+
+        Args:
+            summary: 予定のタイトル
+            start: 開始日時
+            end: 終了日時（省略時はstartから1時間後、終日の場合は翌日）
+            description: 説明
+            location: 場所
+            all_day: 終日予定かどうか
+
+        Returns:
+            CalendarEvent: 作成されたイベント
+        """
+        # 終了時刻のデフォルト設定
+        if end is None:
+            if all_day:
+                end = start + timedelta(days=1)
+            else:
+                end = start + timedelta(hours=1)
+
+        # イベントボディの構築
+        event_body: dict[str, Any] = {
+            "summary": summary,
+        }
+
+        if all_day:
+            event_body["start"] = {"date": start.strftime("%Y-%m-%d")}
+            event_body["end"] = {"date": end.strftime("%Y-%m-%d")}
+        else:
+            event_body["start"] = {
+                "dateTime": start.isoformat(),
+                "timeZone": str(self.timezone),
+            }
+            event_body["end"] = {
+                "dateTime": end.isoformat(),
+                "timeZone": str(self.timezone),
+            }
+
+        if description:
+            event_body["description"] = description
+
+        if location:
+            event_body["location"] = location
+
+        try:
+            created_event = (
+                self._service.events()
+                .insert(calendarId=self.calendar_id, body=event_body)
+                .execute()
+            )
+
+            logger.info(
+                "Calendar event created",
+                event_id=created_event.get("id"),
+                summary=summary,
+            )
+
+            return self._parse_event(created_event)
+
+        except Exception as e:
+            logger.error("Failed to create calendar event", error=str(e))
+            raise
+
+    async def get_events_for_date(self, date: datetime) -> list[CalendarEvent]:
+        """指定日の予定を取得
+
+        Args:
+            date: 取得対象の日付
+
+        Returns:
+            list[CalendarEvent]: イベントリスト
+        """
+        start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        if start_of_day.tzinfo is None:
+            start_of_day = start_of_day.replace(tzinfo=self.timezone)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        return await self._get_events(start_of_day, end_of_day)

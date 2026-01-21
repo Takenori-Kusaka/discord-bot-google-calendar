@@ -82,6 +82,7 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 
 ## ツール使用ガイドライン
 - 予定の確認 → get_calendar_events
+- 予定の登録 → create_calendar_event
 - 天気予報 → get_weather
 - 地域イベント → search_events
 - 法改正・制度情報 → get_life_info
@@ -152,6 +153,27 @@ def create_langchain_tools():
         """
         return f"get_family_info called with {category}"
 
+    @tool
+    def create_calendar_event(
+        summary: str,
+        date: str,
+        start_time: str = None,
+        end_time: str = None,
+        description: str = None,
+        location: str = None,
+    ) -> str:
+        """Googleカレンダーに新しい予定を登録します。
+
+        Args:
+            summary: 予定のタイトル
+            date: 予定の日付（YYYY-MM-DD形式、例: 2026-01-25）
+            start_time: 開始時刻（HH:MM形式、例: 14:30）。省略時は終日予定
+            end_time: 終了時刻（HH:MM形式、例: 15:30）。省略時は開始から1時間後
+            description: 予定の説明（任意）
+            location: 場所（任意）
+        """
+        return f"create_calendar_event called with {summary}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -159,6 +181,7 @@ def create_langchain_tools():
         get_life_info,
         get_today_info,
         get_family_info,
+        create_calendar_event,
     ]
 
 
