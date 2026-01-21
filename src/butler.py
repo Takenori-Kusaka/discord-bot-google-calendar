@@ -322,12 +322,15 @@ class Butler:
                 context="週次生活影響情報通知",
             )
 
-    async def handle_message(self, message: str, channel: str) -> str:
+    async def handle_message(
+        self, message: str, channel: str, images: list | None = None
+    ) -> str:
         """Discordメッセージを処理（ツール使用対応）
 
         Args:
             message: 受信したメッセージ
             channel: チャンネル名
+            images: 添付画像のリスト（base64エンコード済み）
 
         Returns:
             str: 応答メッセージ
@@ -338,6 +341,7 @@ class Butler:
             message_length=len(message),
             channel=channel,
             mode=mode,
+            image_count=len(images) if images else 0,
         )
 
         try:
@@ -351,6 +355,7 @@ class Butler:
                     tool_executor=self.tool_executor,
                     butler_name=self.name,
                     user_context={"family_context": family_context},
+                    images=images,
                 )
             else:
                 # 既存のClaudeClient.chat_with_toolsを使用

@@ -566,6 +566,7 @@ async def run_butler_agent(
     tool_executor: ToolExecutor | None = None,
     butler_name: str = "黒田",
     user_context: dict[str, Any] | None = None,
+    images: list[dict] | None = None,
 ) -> str:
     """執事エージェントを実行
 
@@ -574,6 +575,7 @@ async def run_butler_agent(
         tool_executor: ツール実行器
         butler_name: 執事の名前
         user_context: ユーザーコンテキスト
+        images: 添付画像のリスト（base64エンコード済み）
 
     Returns:
         str: 執事からの応答
@@ -584,9 +586,43 @@ async def run_butler_agent(
         butler_name=butler_name,
     )
 
+    # メッセージ内容を構築
+    if images:
+        # 画像がある場合はマルチモーダルメッセージを構築
+        content = []
+
+        # テキスト部分
+        if message:
+            content.append({"type": "text", "text": message})
+
+        # 画像部分
+        for img in images:
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{img['media_type']};base64,{img['data']}"
+                    },
+                }
+            )
+
+        # 画像分析用のヒントを追加
+        if not message or "イベント" not in message:
+            content.append(
+                {
+                    "type": "text",
+                    "text": "\n\n画像にイベントや予定の情報が含まれている場合は、日時・場所・内容を抽出してお知らせください。"
+                    "カレンダーへの登録をご希望の場合はお申し付けください。",
+                }
+            )
+
+        human_message = HumanMessage(content=content)
+    else:
+        human_message = HumanMessage(content=message)
+
     # 初期状態を構築
     initial_state = {
-        "messages": [HumanMessage(content=message)],
+        "messages": [human_message],
         "user_context": user_context or {},
         "retry_count": 0,
         "error": None,

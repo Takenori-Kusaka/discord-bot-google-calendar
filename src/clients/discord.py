@@ -1,7 +1,9 @@
 """Discord クライアント"""
 
+import base64
 from typing import Callable, Optional
 
+import aiohttp
 import discord
 from discord.ext import commands
 
@@ -50,10 +52,32 @@ class DiscordClient:
         """メッセージハンドラを設定
 
         Args:
-            handler: メッセージ処理関数 (message: str, channel: str) -> str
+            handler: メッセージ処理関数 (message: str, channel: str, images: list) -> str
         """
         self._message_handler = handler
         logger.info("Message handler registered")
+
+    async def _download_image_as_base64(self, url: str) -> str | None:
+        """画像をダウンロードしてbase64エンコードする
+
+        Args:
+            url: 画像URL
+
+        Returns:
+            str | None: base64エンコードされた画像データ
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.read()
+                        return base64.b64encode(data).decode("utf-8")
+                    else:
+                        logger.warning(f"Failed to download image: {response.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"Error downloading image: {e}")
+            return None
 
     def _setup_events(self):
         """イベントハンドラを設定"""
@@ -95,8 +119,33 @@ class DiscordClient:
                     content = content.replace(f"<@{self.bot.user.id}>", "").strip()
                 content = content.replace("黒田", "").strip()
 
-                if not content:
+                # 画像添付をチェック
+                images = []
+                image_extensions = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+                for attachment in message.attachments:
+                    if attachment.filename.lower().endswith(image_extensions):
+                        image_data = await self._download_image_as_base64(
+                            attachment.url
+                        )
+                        if image_data:
+                            # 拡張子からメディアタイプを判定
+                            ext = attachment.filename.lower().split(".")[-1]
+                            media_type = f"image/{ext}" if ext != "jpg" else "image/jpeg"
+                            images.append(
+                                {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": image_data,
+                                }
+                            )
+                            logger.info(
+                                f"Image attachment processed: {attachment.filename}"
+                            )
+
+                if not content and not images:
                     content = "何かお手伝いできることはございますか？"
+                elif not content and images:
+                    content = "この画像について教えてください"
 
                 logger.info(
                     "Processing message",
@@ -107,13 +156,14 @@ class DiscordClient:
                         else "DM"
                     ),
                     content_length=len(content),
+                    image_count=len(images),
                 )
 
                 # Butlerで処理
                 channel_name = (
                     message.channel.name if hasattr(message.channel, "name") else "dm"
                 )
-                response = await self._message_handler(content, channel_name)
+                response = await self._message_handler(content, channel_name, images)
 
                 # 応答を送信
                 await message.reply(response)
