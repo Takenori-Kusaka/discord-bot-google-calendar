@@ -92,6 +92,9 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 - リマインダー設定 → set_reminder
 - リマインダー一覧 → list_reminders
 - リマインダー削除 → delete_reminder
+- 買い物リスト追加 → add_shopping_item
+- 買い物リスト表示 → list_shopping
+- 買い物リスト削除 → remove_shopping_item
 
 ## 応答ルール
 1. ツールで取得した情報を基に応答
@@ -226,6 +229,41 @@ def create_langchain_tools():
         """
         return f"delete_reminder called with {reminder_id}"
 
+    @tool
+    def add_shopping_item(
+        name: str,
+        quantity: str = None,
+        category: str = None,
+        note: str = None,
+    ) -> str:
+        """買い物リストにアイテムを追加します。
+
+        Args:
+            name: 商品名（例: 牛乳、卵、食パン）
+            quantity: 数量（例: 2本、1パック）
+            category: カテゴリ（食品、野菜・果物、肉・魚、乳製品、飲料、調味料、日用品、洗剤・衛生用品、ベビー用品、医薬品、その他）
+            note: メモ（例: 特売品、〇〇用）
+        """
+        return f"add_shopping_item called with {name}"
+
+    @tool
+    def list_shopping(category: str = None) -> str:
+        """買い物リストを表示します。
+
+        Args:
+            category: カテゴリでフィルタ（省略時は全件）
+        """
+        return "list_shopping called"
+
+    @tool
+    def remove_shopping_item(item: str) -> str:
+        """買い物リストからアイテムを削除します。
+
+        Args:
+            item: 削除する商品名またはID
+        """
+        return f"remove_shopping_item called with {item}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -238,6 +276,9 @@ def create_langchain_tools():
         set_reminder,
         list_reminders,
         delete_reminder,
+        add_shopping_item,
+        list_shopping,
+        remove_shopping_item,
     ]
 
 

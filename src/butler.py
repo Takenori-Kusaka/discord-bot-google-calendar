@@ -17,6 +17,7 @@ from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
+from .clients.shopping_list import ShoppingListClient
 from .clients.today_info import TodayInfoClient
 from .clients.weather import WeatherClient
 from .clients.web_search import WebSearchClient
@@ -44,6 +45,7 @@ class Butler:
         life_info_client: Optional[LifeInfoClient] = None,
         web_search_client: Optional[WebSearchClient] = None,
         reminder_client: Optional[ReminderClient] = None,
+        shopping_list_client: Optional[ShoppingListClient] = None,
         use_langgraph: bool = False,
     ):
         """初期化
@@ -59,6 +61,7 @@ class Butler:
             life_info_client: 生活影響情報クライアント（オプション）
             web_search_client: Web検索クライアント（オプション）
             reminder_client: リマインダークライアント（オプション）
+            shopping_list_client: 買い物リストクライアント（オプション）
             use_langgraph: LangGraphエージェントを使用するかどうか
         """
         self.settings = settings
@@ -71,6 +74,7 @@ class Butler:
         self.life_info = life_info_client
         self.web_search = web_search_client
         self.reminder = reminder_client
+        self.shopping_list = shopping_list_client
         self.name = settings.butler_name
         self.use_langgraph = use_langgraph
 
@@ -90,6 +94,7 @@ class Butler:
             today_info_client=today_info_client,
             web_search_client=web_search_client,
             reminder_client=reminder_client,
+            shopping_list_client=shopping_list_client,
             family_data=self.family_data,
             timezone=settings.timezone,
         )

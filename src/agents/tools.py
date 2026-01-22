@@ -195,6 +195,72 @@ TOOL_DEFINITIONS = [
             "required": ["reminder_id"],
         },
     },
+    {
+        "name": "add_shopping_item",
+        "description": "買い物リストにアイテムを追加します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "商品名（例: 牛乳、卵、食パン）",
+                },
+                "quantity": {
+                    "type": "string",
+                    "description": "数量（例: 2本、1パック）",
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "食品",
+                        "野菜・果物",
+                        "肉・魚",
+                        "乳製品",
+                        "飲料",
+                        "調味料",
+                        "日用品",
+                        "洗剤・衛生用品",
+                        "ベビー用品",
+                        "医薬品",
+                        "その他",
+                    ],
+                    "description": "カテゴリ（省略時は自動判定）",
+                },
+                "note": {
+                    "type": "string",
+                    "description": "メモ（例: 特売品、〇〇用）",
+                },
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "list_shopping",
+        "description": "買い物リストを表示します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "description": "カテゴリでフィルタ（省略時は全件）",
+                },
+            },
+        },
+    },
+    {
+        "name": "remove_shopping_item",
+        "description": "買い物リストからアイテムを削除します。商品名またはIDで指定できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "item": {
+                    "type": "string",
+                    "description": "削除する商品名またはID",
+                },
+            },
+            "required": ["item"],
+        },
+    },
 ]
 
 
@@ -219,6 +285,7 @@ class ToolExecutor:
         today_info_client=None,
         web_search_client=None,
         reminder_client=None,
+        shopping_list_client=None,
         family_data: Optional[dict] = None,
         timezone: str = "Asia/Tokyo",
     ):
@@ -232,6 +299,7 @@ class ToolExecutor:
             today_info_client: 今日は何の日クライアント
             web_search_client: Web検索クライアント
             reminder_client: リマインダークライアント
+            shopping_list_client: 買い物リストクライアント
             family_data: 家族情報
             timezone: タイムゾーン
         """
@@ -242,6 +310,7 @@ class ToolExecutor:
         self.today_info_client = today_info_client
         self.web_search_client = web_search_client
         self.reminder_client = reminder_client
+        self.shopping_list_client = shopping_list_client
         self.family_data = family_data or {}
         self.timezone = timezone
 
@@ -258,6 +327,9 @@ class ToolExecutor:
             "set_reminder": self._set_reminder,
             "list_reminders": self._list_reminders,
             "delete_reminder": self._delete_reminder,
+            "add_shopping_item": self._add_shopping_item,
+            "list_shopping": self._list_shopping,
+            "remove_shopping_item": self._remove_shopping_item,
         }
 
         logger.info("Tool executor initialized")
@@ -671,6 +743,71 @@ class ToolExecutor:
             return f"リマインダー「{reminder.message}」を削除しました。"
         else:
             return f"リマインダーの削除に失敗しました。"
+
+    async def _add_shopping_item(self, tool_input: dict) -> str:
+        """買い物リストにアイテムを追加"""
+        if not self.shopping_list_client:
+            return "買い物リストクライアントが設定されていません。"
+
+        name = tool_input.get("name", "")
+        quantity = tool_input.get("quantity", "")
+        category = tool_input.get("category")
+        note = tool_input.get("note", "")
+
+        if not name:
+            return "商品名を指定してください。"
+
+        try:
+            item = self.shopping_list_client.add_item(
+                name=name,
+                quantity=quantity,
+                category=category,
+                note=note,
+            )
+
+            result = f"買い物リストに追加しました。\n\n"
+            result += f"【追加内容】\n"
+            result += f"- 商品名: {item.name}\n"
+            if item.quantity:
+                result += f"- 数量: {item.quantity}\n"
+            result += f"- カテゴリ: {item.category}\n"
+            result += f"- ID: {item.id}"
+
+            return result
+
+        except Exception as e:
+            logger.error("Failed to add shopping item", error=str(e))
+            return f"買い物リストへの追加に失敗しました: {str(e)}"
+
+    async def _list_shopping(self, tool_input: dict) -> str:
+        """買い物リストを表示"""
+        if not self.shopping_list_client:
+            return "買い物リストクライアントが設定されていません。"
+
+        category = tool_input.get("category")
+        return self.shopping_list_client.format_list(category)
+
+    async def _remove_shopping_item(self, tool_input: dict) -> str:
+        """買い物リストからアイテムを削除"""
+        if not self.shopping_list_client:
+            return "買い物リストクライアントが設定されていません。"
+
+        item_str = tool_input.get("item", "")
+        if not item_str:
+            return "削除する商品名またはIDを指定してください。"
+
+        # まずIDとして試す
+        item = self.shopping_list_client.get_item(item_str)
+        if item:
+            self.shopping_list_client.remove_item(item_str)
+            return f"「{item.name}」を買い物リストから削除しました。"
+
+        # 商品名として試す
+        removed_item = self.shopping_list_client.remove_item_by_name(item_str)
+        if removed_item:
+            return f"「{removed_item.name}」を買い物リストから削除しました。"
+
+        return f"「{item_str}」は買い物リストに見つかりませんでした。"
 
 
 def get_tool_definitions() -> list[dict]:

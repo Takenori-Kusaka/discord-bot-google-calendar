@@ -16,6 +16,7 @@ from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
+from .clients.shopping_list import ShoppingListClient
 from .clients.today_info import TodayInfoClient
 from .clients.weather import WeatherClient
 from .clients.web_search import WebSearchClient
@@ -102,6 +103,10 @@ async def main():
     )
     logger.info("Reminder client initialized")
 
+    # 買い物リストクライアント初期化
+    shopping_list_client = ShoppingListClient()
+    logger.info("Shopping list client initialized")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -114,6 +119,7 @@ async def main():
         life_info_client=life_info_client,
         web_search_client=web_search_client,
         reminder_client=reminder_client,
+        shopping_list_client=shopping_list_client,
         use_langgraph=settings.use_langgraph,
     )
 
