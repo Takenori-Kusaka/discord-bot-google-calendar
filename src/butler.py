@@ -18,6 +18,7 @@ from .clients.event_search import EventSearchClient
 from .clients.life_info import LifeInfoClient
 from .clients.today_info import TodayInfoClient
 from .clients.weather import WeatherClient
+from .clients.web_search import WebSearchClient
 from .config.settings import Settings
 from .utils.logger import get_logger
 
@@ -40,6 +41,7 @@ class Butler:
         weather_client: Optional[WeatherClient] = None,
         today_info_client: Optional[TodayInfoClient] = None,
         life_info_client: Optional[LifeInfoClient] = None,
+        web_search_client: Optional[WebSearchClient] = None,
         use_langgraph: bool = False,
     ):
         """初期化
@@ -53,6 +55,7 @@ class Butler:
             weather_client: 天気クライアント（オプション）
             today_info_client: 今日は何の日クライアント（オプション）
             life_info_client: 生活影響情報クライアント（オプション）
+            web_search_client: Web検索クライアント（オプション）
             use_langgraph: LangGraphエージェントを使用するかどうか
         """
         self.settings = settings
@@ -63,6 +66,7 @@ class Butler:
         self.weather = weather_client
         self.today_info = today_info_client
         self.life_info = life_info_client
+        self.web_search = web_search_client
         self.name = settings.butler_name
         self.use_langgraph = use_langgraph
 
@@ -80,6 +84,7 @@ class Butler:
             event_search_client=event_search_client,
             life_info_client=life_info_client,
             today_info_client=today_info_client,
+            web_search_client=web_search_client,
             family_data=self.family_data,
             timezone=settings.timezone,
         )
@@ -303,9 +308,10 @@ class Butler:
 
             # 4. Discordに送信（生活影響情報用チャンネル）
             # 設定にチャンネルがなければ地域チャンネルに送信
-            channel = getattr(
-                self.settings, "discord_channel_life_info", None
-            ) or self.settings.discord_channel_region
+            channel = (
+                getattr(self.settings, "discord_channel_life_info", None)
+                or self.settings.discord_channel_region
+            )
 
             success = await self.discord.send_to_channel(channel, message)
 

@@ -113,6 +113,36 @@ TOOL_DEFINITIONS = [
             "required": ["summary", "date"],
         },
     },
+    {
+        "name": "web_search",
+        "description": "インターネットで情報を検索します。最新のニュース、店舗情報、営業時間、ルート検索、一般的な質問など、カレンダーや天気以外の情報を調べるときに使用します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "検索したい内容や質問（例: 「高の原イオンの営業時間」「最近のニュース」「子連れで行けるカフェ」）",
+                },
+                "search_type": {
+                    "type": "string",
+                    "enum": [
+                        "general",
+                        "business_hours",
+                        "route",
+                        "news",
+                        "restaurant",
+                    ],
+                    "description": "検索の種類。general=一般検索、business_hours=営業時間検索、route=経路検索、news=ニュース検索、restaurant=飲食店検索",
+                    "default": "general",
+                },
+                "location": {
+                    "type": "string",
+                    "description": "場所（経路検索や店舗検索時に使用）",
+                },
+            },
+            "required": ["query"],
+        },
+    },
 ]
 
 
@@ -135,6 +165,7 @@ class ToolExecutor:
         event_search_client=None,
         life_info_client=None,
         today_info_client=None,
+        web_search_client=None,
         family_data: Optional[dict] = None,
         timezone: str = "Asia/Tokyo",
     ):
@@ -146,6 +177,7 @@ class ToolExecutor:
             event_search_client: イベント検索クライアント
             life_info_client: 生活影響情報クライアント
             today_info_client: 今日は何の日クライアント
+            web_search_client: Web検索クライアント
             family_data: 家族情報
             timezone: タイムゾーン
         """
@@ -154,6 +186,7 @@ class ToolExecutor:
         self.event_search_client = event_search_client
         self.life_info_client = life_info_client
         self.today_info_client = today_info_client
+        self.web_search_client = web_search_client
         self.family_data = family_data or {}
         self.timezone = timezone
 
@@ -166,11 +199,14 @@ class ToolExecutor:
             "get_today_info": self._get_today_info,
             "get_family_info": self._get_family_info,
             "create_calendar_event": self._create_calendar_event,
+            "web_search": self._web_search,
         }
 
         logger.info("Tool executor initialized")
 
-    async def execute(self, tool_name: str, tool_input: dict, tool_use_id: str) -> ToolResult:
+    async def execute(
+        self, tool_name: str, tool_input: dict, tool_use_id: str
+    ) -> ToolResult:
         """ツールを実行
 
         Args:
@@ -439,6 +475,46 @@ class ToolExecutor:
         except Exception as e:
             logger.error("Failed to create calendar event", error=str(e))
             return f"予定の登録に失敗しました: {str(e)}"
+
+    async def _web_search(self, tool_input: dict) -> str:
+        """Web検索を実行"""
+        if not self.web_search_client:
+            return "Web検索クライアントが設定されていません。"
+
+        query = tool_input.get("query", "")
+        search_type = tool_input.get("search_type", "general")
+        location = tool_input.get("location", "")
+
+        if not query:
+            return "検索クエリを指定してください。"
+
+        try:
+            if search_type == "business_hours":
+                result = await self.web_search_client.get_business_hours(
+                    query, location
+                )
+            elif search_type == "route":
+                # queryを出発地、locationを目的地として解釈
+                if location:
+                    result = await self.web_search_client.get_route_info(
+                        query, location
+                    )
+                else:
+                    result = await self.web_search_client.search(query)
+            elif search_type == "news":
+                result = await self.web_search_client.get_news(query, location)
+            elif search_type == "restaurant":
+                result = await self.web_search_client.search_restaurant(
+                    cuisine=query, location=location
+                )
+            else:
+                result = await self.web_search_client.general_query(query)
+
+            return f"【Web検索結果】\n{result}"
+
+        except Exception as e:
+            logger.error("Web search failed", error=str(e))
+            return f"Web検索中にエラーが発生しました: {str(e)}"
 
 
 def get_tool_definitions() -> list[dict]:

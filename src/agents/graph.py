@@ -88,6 +88,7 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 - 法改正・制度情報 → get_life_info
 - 今日は何の日 → get_today_info
 - ごみ出し・家族情報 → get_family_info
+- Web検索（営業時間、ニュース、店舗情報など） → web_search
 
 ## 応答ルール
 1. ツールで取得した情報を基に応答
@@ -174,6 +175,21 @@ def create_langchain_tools():
         """
         return f"create_calendar_event called with {summary}"
 
+    @tool
+    def web_search(
+        query: str,
+        search_type: str = "general",
+        location: str = None,
+    ) -> str:
+        """インターネットで情報を検索します。営業時間、ニュース、店舗情報など一般的な質問に回答できます。
+
+        Args:
+            query: 検索したい内容や質問（例: 高の原イオンの営業時間、最近のニュース、子連れで行けるカフェ）
+            search_type: 検索の種類（general=一般検索、business_hours=営業時間、route=経路、news=ニュース、restaurant=飲食店）
+            location: 場所（経路検索や店舗検索時に使用）
+        """
+        return f"web_search called with {query}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -182,6 +198,7 @@ def create_langchain_tools():
         get_today_info,
         get_family_info,
         create_calendar_event,
+        web_search,
     ]
 
 
@@ -276,7 +293,9 @@ def agent_node(state: AgentState) -> dict:
 
         logger.info(
             "Agent response received",
-            has_tool_calls=bool(response.tool_calls) if hasattr(response, "tool_calls") else False,
+            has_tool_calls=(
+                bool(response.tool_calls) if hasattr(response, "tool_calls") else False
+            ),
         )
 
         return {"messages": [response], "error": None}

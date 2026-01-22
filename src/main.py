@@ -17,6 +17,7 @@ from .clients.event_search import EventSearchClient
 from .clients.life_info import LifeInfoClient
 from .clients.today_info import TodayInfoClient
 from .clients.weather import WeatherClient
+from .clients.web_search import WebSearchClient
 from .config.settings import get_settings
 from .scheduler.jobs import setup_scheduler
 from .utils.logger import get_logger, setup_logger
@@ -80,6 +81,16 @@ async def main():
     life_info_client = LifeInfoClient(timezone=settings.timezone)
     logger.info("LifeInfo client initialized")
 
+    # Web検索クライアント初期化（Perplexity API設定がある場合のみ）
+    web_search_client = None
+    if settings.perplexity_api_key:
+        web_search_client = WebSearchClient(
+            perplexity_api_key=settings.perplexity_api_key,
+        )
+        logger.info("Web search client initialized")
+    else:
+        logger.info("Web search client not configured (missing Perplexity API key)")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -90,6 +101,7 @@ async def main():
         weather_client=weather_client,
         today_info_client=today_info_client,
         life_info_client=life_info_client,
+        web_search_client=web_search_client,
         use_langgraph=settings.use_langgraph,
     )
 
