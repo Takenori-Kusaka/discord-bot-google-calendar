@@ -15,11 +15,12 @@ from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
 from .clients.life_info import LifeInfoClient
+from .clients.reminder import ReminderClient
 from .clients.today_info import TodayInfoClient
 from .clients.weather import WeatherClient
 from .clients.web_search import WebSearchClient
 from .config.settings import get_settings
-from .scheduler.jobs import setup_scheduler
+from .scheduler.jobs import create_scheduler, setup_scheduler
 from .utils.logger import get_logger, setup_logger
 
 logger = get_logger(__name__)
@@ -91,6 +92,16 @@ async def main():
     else:
         logger.info("Web search client not configured (missing Perplexity API key)")
 
+    # スケジューラを先に作成（リマインダークライアントで使用）
+    scheduler = create_scheduler(timezone=settings.timezone)
+
+    # リマインダークライアント初期化
+    reminder_client = ReminderClient(
+        scheduler=scheduler,
+        timezone=settings.timezone,
+    )
+    logger.info("Reminder client initialized")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -102,11 +113,26 @@ async def main():
         today_info_client=today_info_client,
         life_info_client=life_info_client,
         web_search_client=web_search_client,
+        reminder_client=reminder_client,
         use_langgraph=settings.use_langgraph,
     )
 
-    # スケジューラ設定
-    scheduler = setup_scheduler(
+    # リマインダー通知コールバックを設定（Discordに通知）
+    async def reminder_notification_callback(message: str, channel: str):
+        """リマインダー通知をDiscordに送信"""
+        butler_message = (
+            f"旦那様、執事の{butler.name}でございます。\n"
+            f"リマインダーをお知らせいたします。\n\n"
+            f"📋 {message}"
+        )
+        # チャンネルが指定されていない場合は予定チャンネルに送信
+        target_channel = channel or settings.discord_channel_schedule
+        await discord_client.send_to_channel(target_channel, butler_message)
+
+    reminder_client.set_notification_callback(reminder_notification_callback)
+
+    # スケジューラにジョブを追加（Butlerのメソッドを使用）
+    setup_scheduler(
         morning_job=butler.morning_notification,
         morning_hour=settings.morning_notification_hour,
         morning_minute=settings.morning_notification_minute,
@@ -117,6 +143,7 @@ async def main():
         life_info_day=getattr(settings, "life_info_day", "mon"),
         life_info_hour=getattr(settings, "life_info_hour", 9),
         timezone=settings.timezone,
+        scheduler=scheduler,
     )
 
     # シグナルハンドラ設定

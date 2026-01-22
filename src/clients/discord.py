@@ -130,7 +130,9 @@ class DiscordClient:
                         if image_data:
                             # 拡張子からメディアタイプを判定
                             ext = attachment.filename.lower().split(".")[-1]
-                            media_type = f"image/{ext}" if ext != "jpg" else "image/jpeg"
+                            media_type = (
+                                f"image/{ext}" if ext != "jpg" else "image/jpeg"
+                            )
                             images.append(
                                 {
                                     "type": "base64",

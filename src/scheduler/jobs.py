@@ -8,6 +8,18 @@ from ..utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def create_scheduler(timezone: str = "Asia/Tokyo") -> AsyncIOScheduler:
+    """スケジューラを作成（ジョブなし）
+
+    Args:
+        timezone: タイムゾーン
+
+    Returns:
+        AsyncIOScheduler: スケジューラ
+    """
+    return AsyncIOScheduler(timezone=timezone)
+
+
 def setup_scheduler(
     morning_job,
     morning_hour: int = 6,
@@ -19,6 +31,7 @@ def setup_scheduler(
     life_info_day: str = "mon",
     life_info_hour: int = 9,
     timezone: str = "Asia/Tokyo",
+    scheduler: AsyncIOScheduler | None = None,
 ) -> AsyncIOScheduler:
     """スケジューラをセットアップ
 
@@ -33,11 +46,13 @@ def setup_scheduler(
         life_info_day: 生活影響情報通知曜日
         life_info_hour: 生活影響情報通知時刻（時）
         timezone: タイムゾーン
+        scheduler: 既存のスケジューラ（指定しない場合は新規作成）
 
     Returns:
         AsyncIOScheduler: スケジューラ
     """
-    scheduler = AsyncIOScheduler(timezone=timezone)
+    if scheduler is None:
+        scheduler = AsyncIOScheduler(timezone=timezone)
 
     # 朝の予定通知（毎日）
     scheduler.add_job(

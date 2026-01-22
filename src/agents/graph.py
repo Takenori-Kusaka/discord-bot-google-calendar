@@ -89,6 +89,9 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 - 今日は何の日 → get_today_info
 - ごみ出し・家族情報 → get_family_info
 - Web検索（営業時間、ニュース、店舗情報など） → web_search
+- リマインダー設定 → set_reminder
+- リマインダー一覧 → list_reminders
+- リマインダー削除 → delete_reminder
 
 ## 応答ルール
 1. ツールで取得した情報を基に応答
@@ -190,6 +193,39 @@ def create_langchain_tools():
         """
         return f"web_search called with {query}"
 
+    @tool
+    def set_reminder(
+        message: str,
+        date: str,
+        time: str,
+        repeat: str = "none",
+        repeat_day: str = None,
+    ) -> str:
+        """指定した日時にリマインダーを設定します。一度きりや繰り返しの通知を設定できます。
+
+        Args:
+            message: リマインダーのメッセージ（例: 電話をする、薬を飲む）
+            date: リマインダーの日付（YYYY-MM-DD形式）
+            time: リマインダーの時刻（HH:MM形式、例: 10:00）
+            repeat: 繰り返し設定（none=一度のみ、daily=毎日、weekly=毎週、monthly=毎月）
+            repeat_day: 毎週リマインダーの場合の曜日（mon, tue, wed, thu, fri, sat, sun）
+        """
+        return f"set_reminder called with {message}"
+
+    @tool
+    def list_reminders() -> str:
+        """設定されているリマインダーの一覧を表示します。"""
+        return "list_reminders called"
+
+    @tool
+    def delete_reminder(reminder_id: str) -> str:
+        """指定したIDのリマインダーを削除します。
+
+        Args:
+            reminder_id: 削除するリマインダーのID
+        """
+        return f"delete_reminder called with {reminder_id}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -199,6 +235,9 @@ def create_langchain_tools():
         get_family_info,
         create_calendar_event,
         web_search,
+        set_reminder,
+        list_reminders,
+        delete_reminder,
     ]
 
 

@@ -595,7 +595,9 @@ JSON配列で出力してください。イベントが見つからない場合�
                     break
 
             except Exception as e:
-                logger.error(f"Error in chat_with_tools iteration {iteration}", error=str(e))
+                logger.error(
+                    f"Error in chat_with_tools iteration {iteration}", error=str(e)
+                )
                 break
 
         # エラー時のフォールバック

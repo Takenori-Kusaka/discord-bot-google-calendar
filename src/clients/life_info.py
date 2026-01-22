@@ -145,9 +145,7 @@ class LifeInfoClient:
             logger.error(f"Failed to fetch law updates: {e}")
             return []
 
-    def _parse_law_updates(
-        self, xml_text: str, days: int = 30
-    ) -> list[LifeImpactInfo]:
+    def _parse_law_updates(self, xml_text: str, days: int = 30) -> list[LifeImpactInfo]:
         """XML形式の法令更新をパース
 
         Args:
@@ -185,7 +183,11 @@ class LifeInfoClient:
                         pass
 
                 # 法令詳細URL
-                detail_url = f"https://laws.e-gov.go.jp/law/{law_id}" if law_id else "https://laws.e-gov.go.jp/"
+                detail_url = (
+                    f"https://laws.e-gov.go.jp/law/{law_id}"
+                    if law_id
+                    else "https://laws.e-gov.go.jp/"
+                )
 
                 info = LifeImpactInfo(
                     title=law_name,
@@ -364,18 +366,14 @@ class LifeInfoClient:
                     source="総務省",
                     source_url="https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/czaisei_seido/furusato/about/",
                     trust_level=TrustLevel.OFFICIAL_EGOV,
-                    deadline=datetime(
-                        now.year, 12, 31, tzinfo=ZoneInfo(self.timezone)
-                    ),
+                    deadline=datetime(now.year, 12, 31, tzinfo=ZoneInfo(self.timezone)),
                     requires_action=True,
                 )
             )
 
         return results
 
-    def format_for_weekly_notification(
-        self, info_list: list[LifeImpactInfo]
-    ) -> str:
+    def format_for_weekly_notification(self, info_list: list[LifeImpactInfo]) -> str:
         """週次通知用にフォーマット
 
         Args:

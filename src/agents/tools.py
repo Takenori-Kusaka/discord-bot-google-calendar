@@ -143,6 +143,58 @@ TOOL_DEFINITIONS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "set_reminder",
+        "description": "指定した日時にリマインダーを設定します。一度きりの通知や、毎日・毎週の繰り返し通知も設定できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "リマインダーのメッセージ（例: 電話をする、薬を飲む）",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "リマインダーの日付（YYYY-MM-DD形式）。繰り返しの場合は開始日。",
+                },
+                "time": {
+                    "type": "string",
+                    "description": "リマインダーの時刻（HH:MM形式、例: 10:00）",
+                },
+                "repeat": {
+                    "type": "string",
+                    "enum": ["none", "daily", "weekly", "monthly"],
+                    "description": "繰り返し設定。none=一度のみ、daily=毎日、weekly=毎週、monthly=毎月",
+                    "default": "none",
+                },
+                "repeat_day": {
+                    "type": "string",
+                    "enum": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+                    "description": "毎週リマインダーの場合の曜日",
+                },
+            },
+            "required": ["message", "date", "time"],
+        },
+    },
+    {
+        "name": "list_reminders",
+        "description": "設定されているリマインダーの一覧を表示します。",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "delete_reminder",
+        "description": "指定したIDのリマインダーを削除します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "reminder_id": {
+                    "type": "string",
+                    "description": "削除するリマインダーのID",
+                },
+            },
+            "required": ["reminder_id"],
+        },
+    },
 ]
 
 
@@ -166,6 +218,7 @@ class ToolExecutor:
         life_info_client=None,
         today_info_client=None,
         web_search_client=None,
+        reminder_client=None,
         family_data: Optional[dict] = None,
         timezone: str = "Asia/Tokyo",
     ):
@@ -178,6 +231,7 @@ class ToolExecutor:
             life_info_client: 生活影響情報クライアント
             today_info_client: 今日は何の日クライアント
             web_search_client: Web検索クライアント
+            reminder_client: リマインダークライアント
             family_data: 家族情報
             timezone: タイムゾーン
         """
@@ -187,6 +241,7 @@ class ToolExecutor:
         self.life_info_client = life_info_client
         self.today_info_client = today_info_client
         self.web_search_client = web_search_client
+        self.reminder_client = reminder_client
         self.family_data = family_data or {}
         self.timezone = timezone
 
@@ -200,6 +255,9 @@ class ToolExecutor:
             "get_family_info": self._get_family_info,
             "create_calendar_event": self._create_calendar_event,
             "web_search": self._web_search,
+            "set_reminder": self._set_reminder,
+            "list_reminders": self._list_reminders,
+            "delete_reminder": self._delete_reminder,
         }
 
         logger.info("Tool executor initialized")
@@ -515,6 +573,104 @@ class ToolExecutor:
         except Exception as e:
             logger.error("Web search failed", error=str(e))
             return f"Web検索中にエラーが発生しました: {str(e)}"
+
+    async def _set_reminder(self, tool_input: dict) -> str:
+        """リマインダーを設定"""
+        if not self.reminder_client:
+            return "リマインダークライアントが設定されていません。"
+
+        message = tool_input.get("message", "")
+        date_str = tool_input.get("date", "")
+        time_str = tool_input.get("time", "")
+        repeat = tool_input.get("repeat", "none")
+        repeat_day = tool_input.get("repeat_day")
+
+        if not message:
+            return "リマインダーのメッセージを指定してください。"
+        if not date_str:
+            return "日付を指定してください。"
+        if not time_str:
+            return "時刻を指定してください。"
+
+        try:
+            # 日時をパース
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            time = datetime.strptime(time_str, "%H:%M").time()
+            trigger_time = datetime.combine(date.date(), time)
+            trigger_time = trigger_time.replace(tzinfo=ZoneInfo(self.timezone))
+
+            # 繰り返し設定を変換
+            repeat_setting = None if repeat == "none" else repeat
+
+            # リマインダーを追加
+            reminder = await self.reminder_client.add_reminder(
+                message=message,
+                trigger_time=trigger_time,
+                repeat=repeat_setting,
+                repeat_day=repeat_day,
+            )
+
+            # 成功メッセージ
+            result = f"リマインダーを設定しました。\n\n"
+            result += f"【設定内容】\n"
+            result += f"- ID: {reminder.id}\n"
+            result += f"- メッセージ: {message}\n"
+
+            if repeat_setting == "daily":
+                result += f"- 時刻: 毎日 {time_str}"
+            elif repeat_setting == "weekly":
+                day_names = {
+                    "mon": "月曜",
+                    "tue": "火曜",
+                    "wed": "水曜",
+                    "thu": "木曜",
+                    "fri": "金曜",
+                    "sat": "土曜",
+                    "sun": "日曜",
+                }
+                day_name = (
+                    day_names.get(repeat_day, repeat_day) if repeat_day else "指定なし"
+                )
+                result += f"- 時刻: 毎週{day_name} {time_str}"
+            elif repeat_setting == "monthly":
+                result += f"- 時刻: 毎月{date.day}日 {time_str}"
+            else:
+                result += f"- 日時: {date_str} {time_str}"
+
+            return result
+
+        except ValueError as e:
+            return f"日時の形式が正しくありません: {str(e)}\n日付はYYYY-MM-DD形式、時刻はHH:MM形式で指定してください。"
+        except Exception as e:
+            logger.error("Failed to set reminder", error=str(e))
+            return f"リマインダーの設定に失敗しました: {str(e)}"
+
+    async def _list_reminders(self, tool_input: dict) -> str:
+        """リマインダー一覧を取得"""
+        if not self.reminder_client:
+            return "リマインダークライアントが設定されていません。"
+
+        return self.reminder_client.format_all_reminders()
+
+    async def _delete_reminder(self, tool_input: dict) -> str:
+        """リマインダーを削除"""
+        if not self.reminder_client:
+            return "リマインダークライアントが設定されていません。"
+
+        reminder_id = tool_input.get("reminder_id", "")
+        if not reminder_id:
+            return "リマインダーIDを指定してください。"
+
+        # 削除前に存在確認
+        reminder = self.reminder_client.get_reminder(reminder_id)
+        if not reminder:
+            return f"ID '{reminder_id}' のリマインダーは見つかりませんでした。"
+
+        success = await self.reminder_client.delete_reminder(reminder_id)
+        if success:
+            return f"リマインダー「{reminder.message}」を削除しました。"
+        else:
+            return f"リマインダーの削除に失敗しました。"
 
 
 def get_tool_definitions() -> list[dict]:
