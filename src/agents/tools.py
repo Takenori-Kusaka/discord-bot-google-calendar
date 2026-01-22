@@ -261,6 +261,42 @@ TOOL_DEFINITIONS = [
             "required": ["item"],
         },
     },
+    {
+        "name": "search_route",
+        "description": "電車・バスの経路や時刻を検索します。出発地から目的地までのルート、所要時間、乗り換え情報を取得できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "origin": {
+                    "type": "string",
+                    "description": "出発地（駅名や地名、例: 木津駅、高の原）",
+                },
+                "destination": {
+                    "type": "string",
+                    "description": "目的地（駅名や地名、例: 京都駅、奈良駅）",
+                },
+                "departure_time": {
+                    "type": "string",
+                    "description": "出発時刻（HH:MM形式、例: 09:00）。省略時は現在時刻",
+                },
+                "arrival_time": {
+                    "type": "string",
+                    "description": "到着希望時刻（HH:MM形式、例: 10:30）。指定時はこの時刻に着くルートを検索",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "日付（YYYY-MM-DD形式または「明日」「今日」）。省略時は今日",
+                },
+                "search_type": {
+                    "type": "string",
+                    "enum": ["normal", "last_train", "first_train"],
+                    "description": "検索種類: normal=通常検索、last_train=終電検索、first_train=始発検索",
+                    "default": "normal",
+                },
+            },
+            "required": ["origin", "destination"],
+        },
+    },
 ]
 
 
@@ -330,6 +366,7 @@ class ToolExecutor:
             "add_shopping_item": self._add_shopping_item,
             "list_shopping": self._list_shopping,
             "remove_shopping_item": self._remove_shopping_item,
+            "search_route": self._search_route,
         }
 
         logger.info("Tool executor initialized")
@@ -808,6 +845,45 @@ class ToolExecutor:
             return f"「{removed_item.name}」を買い物リストから削除しました。"
 
         return f"「{item_str}」は買い物リストに見つかりませんでした。"
+
+    async def _search_route(self, tool_input: dict) -> str:
+        """交通経路を検索"""
+        if not self.web_search_client:
+            return "交通情報検索にはWeb検索クライアントが必要です。"
+
+        origin = tool_input.get("origin", "")
+        destination = tool_input.get("destination", "")
+        departure_time = tool_input.get("departure_time", "")
+        arrival_time = tool_input.get("arrival_time", "")
+        date = tool_input.get("date", "今日")
+        search_type = tool_input.get("search_type", "normal")
+
+        if not origin:
+            return "出発地を指定してください。"
+        if not destination:
+            return "目的地を指定してください。"
+
+        try:
+            # 検索クエリを構築
+            if search_type == "last_train":
+                query = f"{origin}から{destination}までの終電を教えてください。最終の電車・バスの時刻と乗り換え情報を含めてください。"
+            elif search_type == "first_train":
+                query = f"{origin}から{destination}までの始発を教えてください。最初の電車・バスの時刻と乗り換え情報を含めてください。"
+            elif arrival_time:
+                query = f"{date}に{arrival_time}までに{destination}に着きたいです。{origin}からの電車・バスの経路と出発時刻を教えてください。乗り換え情報と所要時間も含めてください。"
+            elif departure_time:
+                query = f"{date}の{departure_time}頃に{origin}を出発して{destination}に行きたいです。電車・バスの経路を教えてください。乗り換え情報と所要時間も含めてください。"
+            else:
+                query = f"{origin}から{destination}までの電車・バスの経路を教えてください。現在時刻からのルート、所要時間、乗り換え情報を含めてください。"
+
+            # Perplexity APIで検索
+            result = await self.web_search_client.search(query)
+
+            return f"【交通情報検索結果】\n{origin} → {destination}\n\n{result}"
+
+        except Exception as e:
+            logger.error("Route search failed", error=str(e))
+            return f"交通情報の検索に失敗しました: {str(e)}"
 
 
 def get_tool_definitions() -> list[dict]:

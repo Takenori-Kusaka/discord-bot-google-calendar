@@ -95,6 +95,7 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 - 買い物リスト追加 → add_shopping_item
 - 買い物リスト表示 → list_shopping
 - 買い物リスト削除 → remove_shopping_item
+- 交通情報検索（電車・バス） → search_route
 
 ## 応答ルール
 1. ツールで取得した情報を基に応答
@@ -264,6 +265,27 @@ def create_langchain_tools():
         """
         return f"remove_shopping_item called with {item}"
 
+    @tool
+    def search_route(
+        origin: str,
+        destination: str,
+        departure_time: str = None,
+        arrival_time: str = None,
+        date: str = None,
+        search_type: str = "normal",
+    ) -> str:
+        """電車・バスの経路や時刻を検索します。
+
+        Args:
+            origin: 出発地（駅名や地名、例: 木津駅、高の原）
+            destination: 目的地（駅名や地名、例: 京都駅、奈良駅）
+            departure_time: 出発時刻（HH:MM形式）。省略時は現在時刻
+            arrival_time: 到着希望時刻（HH:MM形式）。指定時はこの時刻に着くルートを検索
+            date: 日付（YYYY-MM-DD形式または「明日」「今日」）
+            search_type: 検索種類（normal=通常、last_train=終電、first_train=始発）
+        """
+        return f"search_route called from {origin} to {destination}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -279,6 +301,7 @@ def create_langchain_tools():
         add_shopping_item,
         list_shopping,
         remove_shopping_item,
+        search_route,
     ]
 
 
