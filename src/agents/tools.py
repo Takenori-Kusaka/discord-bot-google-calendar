@@ -297,6 +297,240 @@ TOOL_DEFINITIONS = [
             "required": ["origin", "destination"],
         },
     },
+    {
+        "name": "suggest_recipe",
+        "description": "材料や条件からレシピを提案します。冷蔵庫にある材料で作れるレシピや、特定の料理のレシピを検索できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ingredients": {
+                    "type": "string",
+                    "description": "使いたい材料（カンマ区切り、例: 鶏肉, 玉ねぎ, じゃがいも）",
+                },
+                "dish_type": {
+                    "type": "string",
+                    "description": "料理の種類（例: 和食、洋食、中華、主菜、副菜、スープ）",
+                },
+                "servings": {
+                    "type": "integer",
+                    "description": "何人前か（デフォルト: 4人前）",
+                    "default": 4,
+                },
+                "cooking_time": {
+                    "type": "string",
+                    "enum": ["quick", "normal", "long"],
+                    "description": "調理時間: quick=15分以内、normal=30分程度、long=1時間以上",
+                },
+                "dietary_restrictions": {
+                    "type": "string",
+                    "description": "食事制限（例: ベジタリアン、アレルギー食材、低カロリー）",
+                },
+                "request": {
+                    "type": "string",
+                    "description": "具体的なリクエスト（例: 子供が喜ぶ料理、作り置きできるもの）",
+                },
+            },
+        },
+    },
+    {
+        "name": "search_nearby_store",
+        "description": "木津川市・奈良市周辺で店舗を検索します。スーパー、ドラッグストア、ホームセンター、飲食店などを探せます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "store_type": {
+                    "type": "string",
+                    "description": "店舗の種類（例: スーパー、ドラッグストア、ホームセンター、カフェ、レストラン、病院、公園）",
+                },
+                "product": {
+                    "type": "string",
+                    "description": "探している商品やサービス（例: おむつ、子供服、文房具）",
+                },
+                "area": {
+                    "type": "string",
+                    "description": "エリア（例: 高の原、木津川台、精華町）。省略時は木津川市周辺",
+                },
+                "requirements": {
+                    "type": "string",
+                    "description": "追加の要件（例: 駐車場あり、子連れOK、24時間営業）",
+                },
+            },
+        },
+    },
+    {
+        "name": "track_package",
+        "description": "荷物の配送状況を追跡します。ヤマト運輸、佐川急便、日本郵便などの追跡番号から配送状況を確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "tracking_number": {
+                    "type": "string",
+                    "description": "追跡番号（伝票番号）",
+                },
+                "carrier": {
+                    "type": "string",
+                    "enum": ["yamato", "sagawa", "japanpost", "auto"],
+                    "description": "配送業者（yamato=ヤマト運輸、sagawa=佐川急便、japanpost=日本郵便、auto=自動判定）",
+                    "default": "auto",
+                },
+            },
+            "required": ["tracking_number"],
+        },
+    },
+    {
+        "name": "add_housework_task",
+        "description": "定期的な家事タスクを登録します。エアコンフィルター掃除、換気扇掃除などのメンテナンスタスクを管理できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "タスク名（例: エアコンフィルター掃除、浴室カビ取り）",
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "掃除",
+                        "洗濯",
+                        "料理",
+                        "買い出し",
+                        "ゴミ出し",
+                        "整理整頓",
+                        "住宅メンテナンス",
+                        "家電メンテナンス",
+                        "庭・外回り",
+                        "その他",
+                    ],
+                    "description": "カテゴリ",
+                },
+                "interval_days": {
+                    "type": "integer",
+                    "description": "繰り返し間隔（日数）。0=繰り返しなし、7=毎週、30=毎月、90=3ヶ月毎",
+                },
+                "note": {
+                    "type": "string",
+                    "description": "メモ",
+                },
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "done_housework",
+        "description": "家事タスクを完了としてマークします。タスク名またはIDで指定できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "完了したタスク名またはID（例: エアコンフィルター掃除）",
+                },
+            },
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "list_housework",
+        "description": "家事タスクの一覧を表示します。期限切れのタスクも確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string",
+                    "description": "カテゴリでフィルタ（省略時は全件）",
+                },
+                "due_only": {
+                    "type": "boolean",
+                    "description": "trueの場合、期限切れのタスクのみ表示",
+                    "default": False,
+                },
+            },
+        },
+    },
+    {
+        "name": "control_light",
+        "description": "部屋の照明を制御します。ON/OFFを切り替えられます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "room": {
+                    "type": "string",
+                    "enum": ["書斎", "リビング", "寝室", "子供部屋", "廊下"],
+                    "description": "部屋名",
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["on", "off"],
+                    "description": "on=点灯、off=消灯",
+                },
+            },
+            "required": ["room", "action"],
+        },
+    },
+    {
+        "name": "control_climate",
+        "description": "部屋のエアコンを制御します。ON/OFF、温度設定、モード切替ができます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "room": {
+                    "type": "string",
+                    "enum": ["書斎", "リビング", "寝室", "子供部屋"],
+                    "description": "部屋名",
+                },
+                "action": {
+                    "type": "string",
+                    "enum": ["on", "off"],
+                    "description": "on=運転開始、off=停止",
+                },
+                "temperature": {
+                    "type": "integer",
+                    "description": "設定温度（16-30）",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["cool", "heat", "dry", "fan_only"],
+                    "description": "運転モード（cool=冷房、heat=暖房、dry=除湿、fan_only=送風）",
+                    "default": "cool",
+                },
+            },
+            "required": ["room", "action"],
+        },
+    },
+    {
+        "name": "get_room_environment",
+        "description": "部屋の温度・湿度などの環境情報を取得します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "room": {
+                    "type": "string",
+                    "enum": ["書斎", "リビング", "寝室", "子供部屋", "all"],
+                    "description": "部屋名（all=全部屋）",
+                },
+            },
+        },
+    },
+    {
+        "name": "smart_home_speak",
+        "description": "スマートスピーカーから音声でメッセージを伝えます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "伝えるメッセージ",
+                },
+                "room": {
+                    "type": "string",
+                    "enum": ["書斎", "リビング", "子供部屋"],
+                    "description": "スピーカーがある部屋",
+                    "default": "リビング",
+                },
+            },
+            "required": ["message"],
+        },
+    },
 ]
 
 
@@ -322,6 +556,8 @@ class ToolExecutor:
         web_search_client=None,
         reminder_client=None,
         shopping_list_client=None,
+        housework_client=None,
+        home_assistant_client=None,
         family_data: Optional[dict] = None,
         timezone: str = "Asia/Tokyo",
     ):
@@ -336,6 +572,8 @@ class ToolExecutor:
             web_search_client: Web検索クライアント
             reminder_client: リマインダークライアント
             shopping_list_client: 買い物リストクライアント
+            housework_client: 家事記録クライアント
+            home_assistant_client: Home Assistantクライアント
             family_data: 家族情報
             timezone: タイムゾーン
         """
@@ -347,6 +585,8 @@ class ToolExecutor:
         self.web_search_client = web_search_client
         self.reminder_client = reminder_client
         self.shopping_list_client = shopping_list_client
+        self.housework_client = housework_client
+        self.home_assistant_client = home_assistant_client
         self.family_data = family_data or {}
         self.timezone = timezone
 
@@ -367,6 +607,16 @@ class ToolExecutor:
             "list_shopping": self._list_shopping,
             "remove_shopping_item": self._remove_shopping_item,
             "search_route": self._search_route,
+            "suggest_recipe": self._suggest_recipe,
+            "search_nearby_store": self._search_nearby_store,
+            "track_package": self._track_package,
+            "add_housework_task": self._add_housework_task,
+            "done_housework": self._done_housework,
+            "list_housework": self._list_housework,
+            "control_light": self._control_light,
+            "control_climate": self._control_climate,
+            "get_room_environment": self._get_room_environment,
+            "smart_home_speak": self._smart_home_speak,
         }
 
         logger.info("Tool executor initialized")
@@ -884,6 +1134,392 @@ class ToolExecutor:
         except Exception as e:
             logger.error("Route search failed", error=str(e))
             return f"交通情報の検索に失敗しました: {str(e)}"
+
+    async def _suggest_recipe(self, tool_input: dict) -> str:
+        """レシピを提案"""
+        if not self.web_search_client:
+            return "レシピ検索にはWeb検索クライアントが必要です。"
+
+        ingredients = tool_input.get("ingredients", "")
+        dish_type = tool_input.get("dish_type", "")
+        servings = tool_input.get("servings", 4)
+        cooking_time = tool_input.get("cooking_time", "")
+        dietary_restrictions = tool_input.get("dietary_restrictions", "")
+        request = tool_input.get("request", "")
+
+        try:
+            # 検索クエリを構築
+            query_parts = []
+
+            if ingredients:
+                query_parts.append(f"以下の材料を使ったレシピを教えてください: {ingredients}")
+            else:
+                query_parts.append("おすすめのレシピを教えてください")
+
+            if dish_type:
+                query_parts.append(f"料理の種類: {dish_type}")
+
+            if servings:
+                query_parts.append(f"{servings}人前で作れるレシピ")
+
+            if cooking_time:
+                time_desc = {
+                    "quick": "15分以内で作れる時短レシピ",
+                    "normal": "30分程度で作れるレシピ",
+                    "long": "じっくり時間をかけて作るレシピ",
+                }
+                query_parts.append(time_desc.get(cooking_time, ""))
+
+            if dietary_restrictions:
+                query_parts.append(f"食事制限: {dietary_restrictions}")
+
+            if request:
+                query_parts.append(f"リクエスト: {request}")
+
+            query_parts.append(
+                "レシピには以下を含めてください: 材料リスト（分量付き）、作り方の手順、調理時間の目安、コツやポイント"
+            )
+
+            query = "。".join(query_parts)
+
+            # Perplexity APIで検索
+            result = await self.web_search_client.search(query)
+
+            # 結果をフォーマット
+            header = "【レシピ提案】\n"
+            if ingredients:
+                header += f"材料: {ingredients}\n"
+            if dish_type:
+                header += f"種類: {dish_type}\n"
+            if servings:
+                header += f"人数: {servings}人前\n"
+            header += "\n"
+
+            return f"{header}{result}"
+
+        except Exception as e:
+            logger.error("Recipe suggestion failed", error=str(e))
+            return f"レシピの検索に失敗しました: {str(e)}"
+
+    async def _search_nearby_store(self, tool_input: dict) -> str:
+        """近隣店舗を検索"""
+        if not self.web_search_client:
+            return "店舗検索にはWeb検索クライアントが必要です。"
+
+        store_type = tool_input.get("store_type", "")
+        product = tool_input.get("product", "")
+        area = tool_input.get("area", "木津川市")
+        requirements = tool_input.get("requirements", "")
+
+        try:
+            # 検索クエリを構築
+            query_parts = []
+
+            if store_type:
+                query_parts.append(f"{area}周辺の{store_type}")
+            elif product:
+                query_parts.append(f"{area}周辺で{product}を買える店")
+            else:
+                query_parts.append(f"{area}周辺のおすすめの店舗")
+
+            if product and store_type:
+                query_parts.append(f"{product}を扱っている店")
+
+            if requirements:
+                query_parts.append(f"条件: {requirements}")
+
+            query_parts.append(
+                "店舗名、住所、営業時間、特徴を含めて教えてください。できれば複数の候補を挙げてください。"
+            )
+
+            query = "。".join(query_parts)
+
+            # Perplexity APIで検索
+            result = await self.web_search_client.search(query)
+
+            # 結果をフォーマット
+            header = "【店舗検索結果】\n"
+            header += f"エリア: {area}\n"
+            if store_type:
+                header += f"店舗タイプ: {store_type}\n"
+            if product:
+                header += f"探している商品: {product}\n"
+            header += "\n"
+
+            return f"{header}{result}"
+
+        except Exception as e:
+            logger.error("Nearby store search failed", error=str(e))
+            return f"店舗の検索に失敗しました: {str(e)}"
+
+    async def _track_package(self, tool_input: dict) -> str:
+        """荷物を追跡"""
+        if not self.web_search_client:
+            return "荷物追跡にはWeb検索クライアントが必要です。"
+
+        tracking_number = tool_input.get("tracking_number", "")
+        carrier = tool_input.get("carrier", "auto")
+
+        if not tracking_number:
+            return "追跡番号を指定してください。"
+
+        try:
+            # 配送業者を判定
+            carrier_name = ""
+            tracking_url = ""
+
+            if carrier == "auto":
+                # 追跡番号から業者を推測
+                num = tracking_number.replace("-", "").replace(" ", "")
+                if len(num) == 12 and num.isdigit():
+                    carrier = "yamato"
+                elif len(num) == 12 and num.startswith("0"):
+                    carrier = "sagawa"
+                elif len(num) in [11, 13] and num.isdigit():
+                    carrier = "japanpost"
+
+            if carrier == "yamato":
+                carrier_name = "ヤマト運輸"
+                tracking_url = f"https://toi.kuronekoyamato.co.jp/cgi-bin/tneko?number01={tracking_number}"
+            elif carrier == "sagawa":
+                carrier_name = "佐川急便"
+                tracking_url = f"https://k2k.sagawa-exp.co.jp/p/web/okurijosearch.do?okurijoNo={tracking_number}"
+            elif carrier == "japanpost":
+                carrier_name = "日本郵便"
+                tracking_url = f"https://trackings.post.japanpost.jp/services/srv/search?requestNo1={tracking_number}"
+            else:
+                carrier_name = "不明"
+
+            # Perplexity APIで検索
+            query = f"荷物追跡番号 {tracking_number}"
+            if carrier_name != "不明":
+                query = f"{carrier_name} 追跡番号 {tracking_number} の配送状況を教えてください。"
+            else:
+                query = f"追跡番号 {tracking_number} の荷物の配送状況を教えてください。配送業者も特定してください。"
+
+            result = await self.web_search_client.search(query)
+
+            # 結果をフォーマット
+            header = "【荷物追跡結果】\n"
+            header += f"追跡番号: {tracking_number}\n"
+            if carrier_name != "不明":
+                header += f"配送業者: {carrier_name}\n"
+            if tracking_url:
+                header += f"追跡ページ: {tracking_url}\n"
+            header += "\n"
+
+            return f"{header}{result}"
+
+        except Exception as e:
+            logger.error("Package tracking failed", error=str(e))
+            return f"荷物追跡に失敗しました: {str(e)}"
+
+    async def _add_housework_task(self, tool_input: dict) -> str:
+        """家事タスクを追加"""
+        if not self.housework_client:
+            return "家事記録クライアントが設定されていません。"
+
+        name = tool_input.get("name", "")
+        category = tool_input.get("category", "その他")
+        interval_days = tool_input.get("interval_days", 0)
+        note = tool_input.get("note", "")
+
+        if not name:
+            return "タスク名を指定してください。"
+
+        try:
+            task = self.housework_client.add_task(
+                name=name,
+                category=category,
+                interval_days=interval_days,
+                note=note,
+            )
+
+            result = f"家事タスクを追加しました。\n\n"
+            result += f"【登録内容】\n"
+            result += f"- タスク名: {task.name}\n"
+            result += f"- カテゴリ: {task.category}\n"
+            if task.interval_days > 0:
+                result += f"- 繰り返し: {task.interval_days}日毎\n"
+            result += f"- ID: {task.id}"
+
+            return result
+
+        except Exception as e:
+            logger.error("Failed to add housework task", error=str(e))
+            return f"家事タスクの追加に失敗しました: {str(e)}"
+
+    async def _done_housework(self, tool_input: dict) -> str:
+        """家事タスクを完了としてマーク"""
+        if not self.housework_client:
+            return "家事記録クライアントが設定されていません。"
+
+        task_str = tool_input.get("task", "")
+        if not task_str:
+            return "タスク名またはIDを指定してください。"
+
+        # まずIDとして試す
+        task = self.housework_client.get_task(task_str)
+        if task:
+            updated = self.housework_client.mark_done(task_str)
+            if updated:
+                result = f"「{updated.name}」を完了としてマークしました。\n"
+                if updated.next_due:
+                    from datetime import datetime
+
+                    next_date = datetime.fromisoformat(updated.next_due)
+                    result += f"次回予定日: {next_date.strftime('%Y年%m月%d日')}"
+                return result
+
+        # タスク名として試す
+        updated = self.housework_client.mark_done_by_name(task_str)
+        if updated:
+            result = f"「{updated.name}」を完了としてマークしました。\n"
+            if updated.next_due:
+                from datetime import datetime
+
+                next_date = datetime.fromisoformat(updated.next_due)
+                result += f"次回予定日: {next_date.strftime('%Y年%m月%d日')}"
+            return result
+
+        return f"「{task_str}」というタスクは見つかりませんでした。"
+
+    async def _list_housework(self, tool_input: dict) -> str:
+        """家事タスク一覧を表示"""
+        if not self.housework_client:
+            return "家事記録クライアントが設定されていません。"
+
+        category = tool_input.get("category")
+        due_only = tool_input.get("due_only", False)
+
+        return self.housework_client.format_list(category, due_only)
+
+    async def _control_light(self, tool_input: dict) -> str:
+        """照明を制御"""
+        if not self.home_assistant_client:
+            return "Home Assistantクライアントが設定されていません。"
+
+        room = tool_input.get("room", "")
+        action = tool_input.get("action", "")
+
+        if not room:
+            return "部屋を指定してください。"
+        if not action:
+            return "操作（on/off）を指定してください。"
+
+        try:
+            if action == "on":
+                success = await self.home_assistant_client.light_on(room)
+                if success:
+                    return f"{room}の照明を点灯しました。"
+                else:
+                    return f"{room}の照明の点灯に失敗しました。"
+            else:
+                success = await self.home_assistant_client.light_off(room)
+                if success:
+                    return f"{room}の照明を消灯しました。"
+                else:
+                    return f"{room}の照明の消灯に失敗しました。"
+
+        except Exception as e:
+            logger.error("Light control failed", error=str(e))
+            return f"照明の制御に失敗しました: {str(e)}"
+
+    async def _control_climate(self, tool_input: dict) -> str:
+        """エアコンを制御"""
+        if not self.home_assistant_client:
+            return "Home Assistantクライアントが設定されていません。"
+
+        room = tool_input.get("room", "")
+        action = tool_input.get("action", "")
+        temperature = tool_input.get("temperature")
+        mode = tool_input.get("mode", "cool")
+
+        if not room:
+            return "部屋を指定してください。"
+        if not action:
+            return "操作（on/off）を指定してください。"
+
+        try:
+            if action == "on":
+                success = await self.home_assistant_client.climate_on(
+                    room, temperature, mode
+                )
+                if success:
+                    mode_names = {
+                        "cool": "冷房",
+                        "heat": "暖房",
+                        "dry": "除湿",
+                        "fan_only": "送風",
+                    }
+                    mode_name = mode_names.get(mode, mode)
+                    result = f"{room}のエアコンを{mode_name}で運転開始しました。"
+                    if temperature:
+                        result += f" 設定温度: {temperature}°C"
+                    return result
+                else:
+                    return f"{room}のエアコンの運転開始に失敗しました。"
+            else:
+                success = await self.home_assistant_client.climate_off(room)
+                if success:
+                    return f"{room}のエアコンを停止しました。"
+                else:
+                    return f"{room}のエアコンの停止に失敗しました。"
+
+        except Exception as e:
+            logger.error("Climate control failed", error=str(e))
+            return f"エアコンの制御に失敗しました: {str(e)}"
+
+    async def _get_room_environment(self, tool_input: dict) -> str:
+        """部屋の環境情報を取得"""
+        if not self.home_assistant_client:
+            return "Home Assistantクライアントが設定されていません。"
+
+        room = tool_input.get("room", "all")
+
+        try:
+            if room == "all":
+                readings = await self.home_assistant_client.get_all_sensors()
+                return self.home_assistant_client.format_sensor_readings(readings)
+            else:
+                reading = await self.home_assistant_client.get_room_sensors(room)
+                if reading:
+                    lines = [f"【{room}の環境】"]
+                    if reading.temperature is not None:
+                        lines.append(f"- 温度: {reading.temperature:.1f}°C")
+                    if reading.humidity is not None:
+                        lines.append(f"- 湿度: {reading.humidity:.0f}%")
+                    if len(lines) == 1:
+                        lines.append("センサー情報を取得できませんでした。")
+                    return "\n".join(lines)
+                else:
+                    return f"{room}のセンサー情報を取得できませんでした。"
+
+        except Exception as e:
+            logger.error("Get room environment failed", error=str(e))
+            return f"環境情報の取得に失敗しました: {str(e)}"
+
+    async def _smart_home_speak(self, tool_input: dict) -> str:
+        """スマートスピーカーから音声を出力"""
+        if not self.home_assistant_client:
+            return "Home Assistantクライアントが設定されていません。"
+
+        message = tool_input.get("message", "")
+        room = tool_input.get("room", "リビング")
+
+        if not message:
+            return "メッセージを指定してください。"
+
+        try:
+            success = await self.home_assistant_client.speak(message, room)
+            if success:
+                return f"{room}のスピーカーからメッセージを伝えました。"
+            else:
+                return f"スピーカーへのメッセージ送信に失敗しました。"
+
+        except Exception as e:
+            logger.error("Smart home speak failed", error=str(e))
+            return f"音声出力に失敗しました: {str(e)}"
 
 
 def get_tool_definitions() -> list[dict]:

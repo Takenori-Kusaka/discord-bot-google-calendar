@@ -96,6 +96,16 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 - 買い物リスト表示 → list_shopping
 - 買い物リスト削除 → remove_shopping_item
 - 交通情報検索（電車・バス） → search_route
+- レシピ提案 → suggest_recipe
+- 近隣店舗検索 → search_nearby_store
+- 荷物追跡 → track_package
+- 家事タスク追加 → add_housework_task
+- 家事完了マーク → done_housework
+- 家事タスク一覧 → list_housework
+- 照明制御 → control_light
+- エアコン制御 → control_climate
+- 室内環境取得 → get_room_environment
+- 音声通知 → smart_home_speak
 
 ## 応答ルール
 1. ツールで取得した情報を基に応答
@@ -286,6 +296,142 @@ def create_langchain_tools():
         """
         return f"search_route called from {origin} to {destination}"
 
+    @tool
+    def suggest_recipe(
+        ingredients: str = None,
+        dish_type: str = None,
+        servings: int = 4,
+        cooking_time: str = None,
+        dietary_restrictions: str = None,
+        request: str = None,
+    ) -> str:
+        """材料や条件からレシピを提案します。冷蔵庫にある材料で作れるレシピや、特定の料理のレシピを検索できます。
+
+        Args:
+            ingredients: 使いたい材料（カンマ区切り、例: 鶏肉, 玉ねぎ, じゃがいも）
+            dish_type: 料理の種類（例: 和食、洋食、中華、主菜、副菜、スープ）
+            servings: 何人前か（デフォルト: 4人前）
+            cooking_time: 調理時間（quick=15分以内、normal=30分程度、long=1時間以上）
+            dietary_restrictions: 食事制限（例: ベジタリアン、アレルギー食材、低カロリー）
+            request: 具体的なリクエスト（例: 子供が喜ぶ料理、作り置きできるもの）
+        """
+        return f"suggest_recipe called with {ingredients}"
+
+    @tool
+    def search_nearby_store(
+        store_type: str = None,
+        product: str = None,
+        area: str = None,
+        requirements: str = None,
+    ) -> str:
+        """木津川市・奈良市周辺で店舗を検索します。スーパー、ドラッグストア、ホームセンター、飲食店などを探せます。
+
+        Args:
+            store_type: 店舗の種類（例: スーパー、ドラッグストア、ホームセンター、カフェ、レストラン、病院、公園）
+            product: 探している商品やサービス（例: おむつ、子供服、文房具）
+            area: エリア（例: 高の原、木津川台、精華町）。省略時は木津川市周辺
+            requirements: 追加の要件（例: 駐車場あり、子連れOK、24時間営業）
+        """
+        return f"search_nearby_store called with {store_type}"
+
+    @tool
+    def track_package(
+        tracking_number: str,
+        carrier: str = "auto",
+    ) -> str:
+        """荷物の配送状況を追跡します。ヤマト運輸、佐川急便、日本郵便などの追跡番号から配送状況を確認できます。
+
+        Args:
+            tracking_number: 追跡番号（伝票番号）
+            carrier: 配送業者（yamato=ヤマト運輸、sagawa=佐川急便、japanpost=日本郵便、auto=自動判定）
+        """
+        return f"track_package called with {tracking_number}"
+
+    @tool
+    def add_housework_task(
+        name: str,
+        category: str = "その他",
+        interval_days: int = 0,
+        note: str = None,
+    ) -> str:
+        """定期的な家事タスクを登録します。エアコンフィルター掃除、換気扇掃除などのメンテナンスタスクを管理できます。
+
+        Args:
+            name: タスク名（例: エアコンフィルター掃除、浴室カビ取り）
+            category: カテゴリ（掃除、洗濯、料理、買い出し、住宅メンテナンス、家電メンテナンス等）
+            interval_days: 繰り返し間隔（日数）。0=繰り返しなし、7=毎週、30=毎月、90=3ヶ月毎
+            note: メモ
+        """
+        return f"add_housework_task called with {name}"
+
+    @tool
+    def done_housework(task: str) -> str:
+        """家事タスクを完了としてマークします。タスク名またはIDで指定できます。
+
+        Args:
+            task: 完了したタスク名またはID（例: エアコンフィルター掃除）
+        """
+        return f"done_housework called with {task}"
+
+    @tool
+    def list_housework(
+        category: str = None,
+        due_only: bool = False,
+    ) -> str:
+        """家事タスクの一覧を表示します。期限切れのタスクも確認できます。
+
+        Args:
+            category: カテゴリでフィルタ（省略時は全件）
+            due_only: trueの場合、期限切れのタスクのみ表示
+        """
+        return "list_housework called"
+
+    @tool
+    def control_light(room: str, action: str) -> str:
+        """部屋の照明を制御します。ON/OFFを切り替えられます。
+
+        Args:
+            room: 部屋名（書斎、リビング、寝室、子供部屋、廊下）
+            action: on=点灯、off=消灯
+        """
+        return f"control_light called: {room} {action}"
+
+    @tool
+    def control_climate(
+        room: str,
+        action: str,
+        temperature: int = None,
+        mode: str = "cool",
+    ) -> str:
+        """部屋のエアコンを制御します。ON/OFF、温度設定、モード切替ができます。
+
+        Args:
+            room: 部屋名（書斎、リビング、寝室、子供部屋）
+            action: on=運転開始、off=停止
+            temperature: 設定温度（16-30）
+            mode: 運転モード（cool=冷房、heat=暖房、dry=除湿、fan_only=送風）
+        """
+        return f"control_climate called: {room} {action}"
+
+    @tool
+    def get_room_environment(room: str = "all") -> str:
+        """部屋の温度・湿度などの環境情報を取得します。
+
+        Args:
+            room: 部屋名（書斎、リビング、寝室、子供部屋、all=全部屋）
+        """
+        return f"get_room_environment called: {room}"
+
+    @tool
+    def smart_home_speak(message: str, room: str = "リビング") -> str:
+        """スマートスピーカーから音声でメッセージを伝えます。
+
+        Args:
+            message: 伝えるメッセージ
+            room: スピーカーがある部屋（書斎、リビング、子供部屋）
+        """
+        return f"smart_home_speak called: {message}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -302,6 +448,16 @@ def create_langchain_tools():
         list_shopping,
         remove_shopping_item,
         search_route,
+        suggest_recipe,
+        search_nearby_store,
+        track_package,
+        add_housework_task,
+        done_housework,
+        list_housework,
+        control_light,
+        control_climate,
+        get_room_environment,
+        smart_home_speak,
     ]
 
 

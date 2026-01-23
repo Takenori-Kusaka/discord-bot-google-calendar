@@ -1,6 +1,7 @@
 """メインエントリーポイント"""
 
 import asyncio
+import os
 import signal
 import sys
 
@@ -14,6 +15,8 @@ from .clients.calendar import GoogleCalendarClient
 from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
+from .clients.home_assistant import HomeAssistantClient
+from .clients.housework import HouseworkClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
 from .clients.shopping_list import ShoppingListClient
@@ -107,6 +110,18 @@ async def main():
     shopping_list_client = ShoppingListClient()
     logger.info("Shopping list client initialized")
 
+    # 家事記録クライアント初期化
+    housework_client = HouseworkClient()
+    logger.info("Housework client initialized")
+
+    # Home Assistantクライアント初期化（トークンが設定されている場合のみ）
+    home_assistant_client = None
+    if os.environ.get("HOME_ASSISTANT_TOKEN"):
+        home_assistant_client = HomeAssistantClient()
+        logger.info("Home Assistant client initialized")
+    else:
+        logger.info("Home Assistant client not configured (missing token)")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -120,6 +135,8 @@ async def main():
         web_search_client=web_search_client,
         reminder_client=reminder_client,
         shopping_list_client=shopping_list_client,
+        housework_client=housework_client,
+        home_assistant_client=home_assistant_client,
         use_langgraph=settings.use_langgraph,
     )
 

@@ -15,6 +15,8 @@ from .clients.calendar import CalendarEvent, GoogleCalendarClient
 from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
+from .clients.home_assistant import HomeAssistantClient
+from .clients.housework import HouseworkClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
 from .clients.shopping_list import ShoppingListClient
@@ -46,6 +48,8 @@ class Butler:
         web_search_client: Optional[WebSearchClient] = None,
         reminder_client: Optional[ReminderClient] = None,
         shopping_list_client: Optional[ShoppingListClient] = None,
+        housework_client: Optional[HouseworkClient] = None,
+        home_assistant_client: Optional[HomeAssistantClient] = None,
         use_langgraph: bool = False,
     ):
         """初期化
@@ -62,6 +66,8 @@ class Butler:
             web_search_client: Web検索クライアント（オプション）
             reminder_client: リマインダークライアント（オプション）
             shopping_list_client: 買い物リストクライアント（オプション）
+            housework_client: 家事記録クライアント（オプション）
+            home_assistant_client: Home Assistantクライアント（オプション）
             use_langgraph: LangGraphエージェントを使用するかどうか
         """
         self.settings = settings
@@ -75,6 +81,8 @@ class Butler:
         self.web_search = web_search_client
         self.reminder = reminder_client
         self.shopping_list = shopping_list_client
+        self.housework = housework_client
+        self.home_assistant = home_assistant_client
         self.name = settings.butler_name
         self.use_langgraph = use_langgraph
 
@@ -95,6 +103,8 @@ class Butler:
             web_search_client=web_search_client,
             reminder_client=reminder_client,
             shopping_list_client=shopping_list_client,
+            housework_client=housework_client,
+            home_assistant_client=home_assistant_client,
             family_data=self.family_data,
             timezone=settings.timezone,
         )
