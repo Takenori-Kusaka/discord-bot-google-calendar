@@ -106,6 +106,19 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 - エアコン制御 → control_climate
 - 室内環境取得 → get_room_environment
 - 音声通知 → smart_home_speak
+- 支出記録 → record_expense
+- 収入記録 → record_income
+- 家計簿サマリー → get_expense_summary
+- 最近の記録 → list_expenses
+- 学校情報 → get_school_info
+- 学校行事 → get_school_events
+- 持ち物リスト → get_school_items
+
+### 健康記録
+- 症状記録（熱・咳等） → record_symptom
+- 通院記録 → record_hospital_visit
+- 健康情報（アレルギー等） → get_health_info
+- 健康記録一覧 → get_health_records
 
 ## 応答ルール
 1. ツールで取得した情報を基に応答
@@ -432,6 +445,145 @@ def create_langchain_tools():
         """
         return f"smart_home_speak called: {message}"
 
+    @tool
+    def record_expense(
+        amount: int,
+        description: str = None,
+        category: str = None,
+        date: str = None,
+        payment_method: str = None,
+    ) -> str:
+        """支出を記録します。買い物や支払いの金額を家計簿に記録できます。
+
+        Args:
+            amount: 金額（円）
+            description: 内容や購入場所（例: スーパーで食材、病院代）
+            category: カテゴリ（食費、日用品、交通費、医療費、教育費、娯楽費、衣服費、通信費、水道光熱費、住居費、保険料、子供関連、その他）
+            date: 日付（YYYY-MM-DD形式、省略時は今日）
+            payment_method: 支払い方法（現金、クレジットカード、デビットカード、電子マネー、QRコード決済、銀行振込）
+        """
+        return f"record_expense called: {amount}"
+
+    @tool
+    def record_income(
+        amount: int,
+        description: str = None,
+        category: str = "その他収入",
+        date: str = None,
+    ) -> str:
+        """収入を記録します。給与や児童手当などの入金を記録できます。
+
+        Args:
+            amount: 金額（円）
+            description: 内容（例: 給与、児童手当）
+            category: カテゴリ（給与、副業、児童手当、その他収入）
+            date: 日付（YYYY-MM-DD形式、省略時は今日）
+        """
+        return f"record_income called: {amount}"
+
+    @tool
+    def get_expense_summary(year: int = None, month: int = None) -> str:
+        """月ごとの家計簿サマリーを表示します。収支やカテゴリ別支出を確認できます。
+
+        Args:
+            year: 年（省略時は今年）
+            month: 月（1-12、省略時は今月）
+        """
+        return "get_expense_summary called"
+
+    @tool
+    def list_expenses(limit: int = 10) -> str:
+        """最近の支出・収入記録を一覧表示します。
+
+        Args:
+            limit: 表示件数（デフォルト10件）
+        """
+        return "list_expenses called"
+
+    @tool
+    def get_school_info(child: str = None) -> str:
+        """子供の学校・保育園情報を取得します。開園時間、連絡先などを確認できます。
+
+        Args:
+            child: 子供の名称（お嬢様、坊ちゃま）
+        """
+        return f"get_school_info called: {child}"
+
+    @tool
+    def get_school_events(days: int = 30) -> str:
+        """学校・保育園の行事予定を取得します。運動会、お遊戯会などの予定を確認できます。
+
+        Args:
+            days: 何日先まで取得するか（デフォルト30日）
+        """
+        return "get_school_events called"
+
+    @tool
+    def get_school_items(item_type: str = "daily") -> str:
+        """学校・保育園の持ち物リストを取得します。毎日・週ごと・特別な持ち物を確認できます。
+
+        Args:
+            item_type: 持ち物タイプ（daily=毎日、weekly=週ごと、special=特別）
+        """
+        return f"get_school_items called: {item_type}"
+
+    # ========================================
+    # 健康記録ツール
+    # ========================================
+
+    @tool
+    def record_symptom(person: str, symptom: str, temperature: float = None, notes: str = "") -> str:
+        """家族の症状・体調不良を記録します。体温も記録できます。
+
+        Args:
+            person: 対象者（旦那様、奥様、お嬢様など）
+            symptom: 症状（例: 発熱、咳、鼻水、腹痛）
+            temperature: 体温（省略可）
+            notes: 備考（省略可）
+        """
+        return f"record_symptom called: {person}, {symptom}"
+
+    @tool
+    def record_hospital_visit(
+        person: str,
+        hospital: str,
+        reason: str,
+        diagnosis: str = "",
+        prescription: str = "",
+        next_visit: str = "",
+    ) -> str:
+        """通院記録を追加します。病院名、診断結果、処方薬などを記録できます。
+
+        Args:
+            person: 対象者（旦那様、奥様、お嬢様など）
+            hospital: 病院名
+            reason: 受診理由
+            diagnosis: 診断結果（省略可）
+            prescription: 処方薬（省略可）
+            next_visit: 次回予約日（省略可）
+        """
+        return f"record_hospital_visit called: {person}, {hospital}"
+
+    @tool
+    def get_health_info(person: str = "") -> str:
+        """家族の健康情報を取得します。アレルギー、持病、かかりつけ病院などを確認できます。
+
+        Args:
+            person: 対象者（省略時は全員）
+        """
+        return f"get_health_info called: {person}"
+
+    @tool
+    def get_health_records(person: str = "", record_type: str = "", days: int = 30) -> str:
+        """健康記録（症状、通院、服薬など）を取得します。
+
+        Args:
+            person: 対象者（省略時は全員）
+            record_type: 記録タイプ（symptom, hospital, medicine, checkup）省略時は全タイプ
+            days: 何日前までの記録を取得するか
+        """
+        return f"get_health_records called: {person}, {record_type}, {days}"
+
     return [
         get_calendar_events,
         get_weather,
@@ -458,6 +610,17 @@ def create_langchain_tools():
         control_climate,
         get_room_environment,
         smart_home_speak,
+        record_expense,
+        record_income,
+        get_expense_summary,
+        list_expenses,
+        get_school_info,
+        get_school_events,
+        get_school_items,
+        record_symptom,
+        record_hospital_visit,
+        get_health_info,
+        get_health_records,
     ]
 
 

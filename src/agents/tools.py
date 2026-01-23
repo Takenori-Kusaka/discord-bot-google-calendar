@@ -531,6 +531,257 @@ TOOL_DEFINITIONS = [
             "required": ["message"],
         },
     },
+    {
+        "name": "record_expense",
+        "description": "支出を記録します。買い物や支払いの金額を家計簿に記録できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "description": "金額（円）",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "内容や購入場所（例: スーパーで食材、病院代）",
+                },
+                "category": {
+                    "type": "string",
+                    "enum": [
+                        "食費",
+                        "日用品",
+                        "交通費",
+                        "医療費",
+                        "教育費",
+                        "娯楽費",
+                        "衣服費",
+                        "通信費",
+                        "水道光熱費",
+                        "住居費",
+                        "保険料",
+                        "子供関連",
+                        "その他",
+                    ],
+                    "description": "カテゴリ（省略時は自動判定）",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "日付（YYYY-MM-DD形式、省略時は今日）",
+                },
+                "payment_method": {
+                    "type": "string",
+                    "enum": [
+                        "現金",
+                        "クレジットカード",
+                        "デビットカード",
+                        "電子マネー",
+                        "QRコード決済",
+                        "銀行振込",
+                    ],
+                    "description": "支払い方法",
+                },
+            },
+            "required": ["amount"],
+        },
+    },
+    {
+        "name": "record_income",
+        "description": "収入を記録します。給与や児童手当などの入金を記録できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer",
+                    "description": "金額（円）",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "内容（例: 給与、児童手当）",
+                },
+                "category": {
+                    "type": "string",
+                    "enum": ["給与", "副業", "児童手当", "その他収入"],
+                    "description": "カテゴリ",
+                    "default": "その他収入",
+                },
+                "date": {
+                    "type": "string",
+                    "description": "日付（YYYY-MM-DD形式、省略時は今日）",
+                },
+            },
+            "required": ["amount"],
+        },
+    },
+    {
+        "name": "get_expense_summary",
+        "description": "月ごとの家計簿サマリーを表示します。収支やカテゴリ別支出を確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "year": {
+                    "type": "integer",
+                    "description": "年（省略時は今年）",
+                },
+                "month": {
+                    "type": "integer",
+                    "description": "月（1-12、省略時は今月）",
+                },
+            },
+        },
+    },
+    {
+        "name": "list_expenses",
+        "description": "最近の支出・収入記録を一覧表示します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "表示件数（デフォルト10件）",
+                    "default": 10,
+                },
+            },
+        },
+    },
+    {
+        "name": "get_school_info",
+        "description": "子供の学校・保育園情報を取得します。開園時間、連絡先などを確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "child": {
+                    "type": "string",
+                    "description": "子供の名称（お嬢様、坊ちゃま）",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_school_events",
+        "description": "学校・保育園の行事予定を取得します。運動会、お遊戯会などの予定を確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "days": {
+                    "type": "integer",
+                    "description": "何日先まで取得するか（デフォルト30日）",
+                    "default": 30,
+                },
+            },
+        },
+    },
+    {
+        "name": "get_school_items",
+        "description": "学校・保育園の持ち物リストを取得します。毎日・週ごと・特別な持ち物を確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "item_type": {
+                    "type": "string",
+                    "enum": ["daily", "weekly", "special"],
+                    "description": "持ち物タイプ（daily=毎日、weekly=週ごと、special=特別）",
+                    "default": "daily",
+                },
+            },
+        },
+    },
+    # 健康記録ツール
+    {
+        "name": "record_symptom",
+        "description": "家族の症状・体調不良を記録します。体温も記録できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "person": {
+                    "type": "string",
+                    "description": "対象者（旦那様、奥様、お嬢様など）",
+                },
+                "symptom": {
+                    "type": "string",
+                    "description": "症状（例: 発熱、咳、鼻水、腹痛）",
+                },
+                "temperature": {
+                    "type": "number",
+                    "description": "体温（省略可）",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "備考（省略可）",
+                },
+            },
+            "required": ["person", "symptom"],
+        },
+    },
+    {
+        "name": "record_hospital_visit",
+        "description": "通院記録を追加します。病院名、診断結果、処方薬などを記録できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "person": {
+                    "type": "string",
+                    "description": "対象者（旦那様、奥様、お嬢様など）",
+                },
+                "hospital": {
+                    "type": "string",
+                    "description": "病院名",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "受診理由",
+                },
+                "diagnosis": {
+                    "type": "string",
+                    "description": "診断結果（省略可）",
+                },
+                "prescription": {
+                    "type": "string",
+                    "description": "処方薬（省略可）",
+                },
+                "next_visit": {
+                    "type": "string",
+                    "description": "次回予約日（省略可）",
+                },
+            },
+            "required": ["person", "hospital", "reason"],
+        },
+    },
+    {
+        "name": "get_health_info",
+        "description": "家族の健康情報を取得します。アレルギー、持病、かかりつけ病院などを確認できます。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "person": {
+                    "type": "string",
+                    "description": "対象者（省略時は全員）",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_health_records",
+        "description": "健康記録（症状、通院、服薬など）を取得します。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "person": {
+                    "type": "string",
+                    "description": "対象者（省略時は全員）",
+                },
+                "record_type": {
+                    "type": "string",
+                    "enum": ["symptom", "hospital", "medicine", "checkup"],
+                    "description": "記録タイプ（省略時は全タイプ）",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "何日前までの記録を取得するか",
+                    "default": 30,
+                },
+            },
+        },
+    },
 ]
 
 
@@ -558,6 +809,9 @@ class ToolExecutor:
         shopping_list_client=None,
         housework_client=None,
         home_assistant_client=None,
+        expense_client=None,
+        school_client=None,
+        health_client=None,
         family_data: Optional[dict] = None,
         timezone: str = "Asia/Tokyo",
     ):
@@ -574,6 +828,9 @@ class ToolExecutor:
             shopping_list_client: 買い物リストクライアント
             housework_client: 家事記録クライアント
             home_assistant_client: Home Assistantクライアント
+            expense_client: 家計簿クライアント
+            school_client: 学校情報クライアント
+            health_client: 健康記録クライアント
             family_data: 家族情報
             timezone: タイムゾーン
         """
@@ -587,6 +844,9 @@ class ToolExecutor:
         self.shopping_list_client = shopping_list_client
         self.housework_client = housework_client
         self.home_assistant_client = home_assistant_client
+        self.expense_client = expense_client
+        self.school_client = school_client
+        self.health_client = health_client
         self.family_data = family_data or {}
         self.timezone = timezone
 
@@ -617,6 +877,18 @@ class ToolExecutor:
             "control_climate": self._control_climate,
             "get_room_environment": self._get_room_environment,
             "smart_home_speak": self._smart_home_speak,
+            "record_expense": self._record_expense,
+            "record_income": self._record_income,
+            "get_expense_summary": self._get_expense_summary,
+            "list_expenses": self._list_expenses,
+            "get_school_info": self._get_school_info,
+            "get_school_events": self._get_school_events,
+            "get_school_items": self._get_school_items,
+            # 健康記録
+            "record_symptom": self._record_symptom,
+            "record_hospital_visit": self._record_hospital_visit,
+            "get_health_info": self._get_health_info,
+            "get_health_records": self._get_health_records,
         }
 
         logger.info("Tool executor initialized")
@@ -1520,6 +1792,292 @@ class ToolExecutor:
         except Exception as e:
             logger.error("Smart home speak failed", error=str(e))
             return f"音声出力に失敗しました: {str(e)}"
+
+    async def _record_expense(self, tool_input: dict) -> str:
+        """支出を記録"""
+        if not self.expense_client:
+            return "家計簿クライアントが設定されていません。"
+
+        amount = tool_input.get("amount")
+        description = tool_input.get("description", "")
+        category = tool_input.get("category")
+        date = tool_input.get("date")
+        payment_method = tool_input.get("payment_method", "")
+
+        if not amount:
+            return "金額を指定してください。"
+
+        try:
+            record = self.expense_client.add_expense(
+                amount=amount,
+                description=description,
+                category=category,
+                date=date,
+                payment_method=payment_method,
+            )
+
+            result = f"支出を記録しました。\n\n"
+            result += f"【記録内容】\n"
+            result += f"- 金額: ¥{record.amount:,}\n"
+            result += f"- カテゴリ: {record.category}\n"
+            if record.description:
+                result += f"- 内容: {record.description}\n"
+            result += f"- 日付: {record.date}\n"
+            if record.payment_method:
+                result += f"- 支払方法: {record.payment_method}\n"
+            result += f"- ID: {record.id}"
+
+            return result
+
+        except Exception as e:
+            logger.error("Failed to record expense", error=str(e))
+            return f"支出の記録に失敗しました: {str(e)}"
+
+    async def _record_income(self, tool_input: dict) -> str:
+        """収入を記録"""
+        if not self.expense_client:
+            return "家計簿クライアントが設定されていません。"
+
+        amount = tool_input.get("amount")
+        description = tool_input.get("description", "")
+        category = tool_input.get("category", "その他収入")
+        date = tool_input.get("date")
+
+        if not amount:
+            return "金額を指定してください。"
+
+        try:
+            record = self.expense_client.add_income(
+                amount=amount,
+                description=description,
+                category=category,
+                date=date,
+            )
+
+            result = f"収入を記録しました。\n\n"
+            result += f"【記録内容】\n"
+            result += f"- 金額: ¥{record.amount:,}\n"
+            result += f"- カテゴリ: {record.category}\n"
+            if record.description:
+                result += f"- 内容: {record.description}\n"
+            result += f"- 日付: {record.date}\n"
+            result += f"- ID: {record.id}"
+
+            return result
+
+        except Exception as e:
+            logger.error("Failed to record income", error=str(e))
+            return f"収入の記録に失敗しました: {str(e)}"
+
+    async def _get_expense_summary(self, tool_input: dict) -> str:
+        """家計簿サマリーを取得"""
+        if not self.expense_client:
+            return "家計簿クライアントが設定されていません。"
+
+        year = tool_input.get("year")
+        month = tool_input.get("month")
+
+        try:
+            return self.expense_client.format_summary(year, month)
+        except Exception as e:
+            logger.error("Failed to get expense summary", error=str(e))
+            return f"サマリーの取得に失敗しました: {str(e)}"
+
+    async def _list_expenses(self, tool_input: dict) -> str:
+        """最近の支出・収入を一覧表示"""
+        if not self.expense_client:
+            return "家計簿クライアントが設定されていません。"
+
+        limit = tool_input.get("limit", 10)
+
+        try:
+            return self.expense_client.format_recent_records(limit)
+        except Exception as e:
+            logger.error("Failed to list expenses", error=str(e))
+            return f"記録の取得に失敗しました: {str(e)}"
+
+    async def _get_school_info(self, tool_input: dict) -> str:
+        """学校情報を取得"""
+        if not self.school_client:
+            return "学校情報クライアントが設定されていません。"
+
+        child = tool_input.get("child", "")
+
+        try:
+            if child:
+                school = self.school_client.get_school_by_child(child)
+                if school:
+                    return self.school_client.format_school_info(school)
+                else:
+                    return f"{child}の学校情報は登録されていません。"
+            else:
+                schools = self.school_client.list_schools()
+                if not schools:
+                    return "学校情報は登録されていません。"
+
+                lines = []
+                for school in schools:
+                    lines.append(self.school_client.format_school_info(school))
+                return "\n\n".join(lines)
+
+        except Exception as e:
+            logger.error("Failed to get school info", error=str(e))
+            return f"学校情報の取得に失敗しました: {str(e)}"
+
+    async def _get_school_events(self, tool_input: dict) -> str:
+        """学校行事を取得"""
+        if not self.school_client:
+            return "学校情報クライアントが設定されていません。"
+
+        days = tool_input.get("days", 30)
+
+        try:
+            return self.school_client.format_upcoming_events(days)
+        except Exception as e:
+            logger.error("Failed to get school events", error=str(e))
+            return f"行事予定の取得に失敗しました: {str(e)}"
+
+    async def _get_school_items(self, tool_input: dict) -> str:
+        """持ち物リストを取得"""
+        if not self.school_client:
+            return "学校情報クライアントが設定されていません。"
+
+        item_type = tool_input.get("item_type", "daily")
+
+        try:
+            return self.school_client.format_required_items(item_type)
+        except Exception as e:
+            logger.error("Failed to get school items", error=str(e))
+            return f"持ち物リストの取得に失敗しました: {str(e)}"
+
+    # ========================================
+    # 健康記録ツール
+    # ========================================
+
+    async def _record_symptom(self, tool_input: dict) -> str:
+        """症状を記録"""
+        if not self.health_client:
+            return "健康記録クライアントが設定されていません。"
+
+        person = tool_input.get("person", "")
+        symptom = tool_input.get("symptom", "")
+        temperature = tool_input.get("temperature")
+        notes = tool_input.get("notes", "")
+
+        if not person or not symptom:
+            return "対象者と症状を指定してください。"
+
+        try:
+            record = self.health_client.add_symptom(
+                person=person,
+                symptom=symptom,
+                temperature=temperature,
+                notes=notes,
+            )
+
+            result = f"{person}の症状を記録しました。\n"
+            result += f"日付: {record.date}\n"
+            result += f"症状: {symptom}"
+            if temperature:
+                result += f"\n体温: {temperature}℃"
+            if notes:
+                result += f"\n備考: {notes}"
+
+            return result
+
+        except Exception as e:
+            logger.error("Failed to record symptom", error=str(e))
+            return f"症状の記録に失敗しました: {str(e)}"
+
+    async def _record_hospital_visit(self, tool_input: dict) -> str:
+        """通院記録を追加"""
+        if not self.health_client:
+            return "健康記録クライアントが設定されていません。"
+
+        person = tool_input.get("person", "")
+        hospital = tool_input.get("hospital", "")
+        reason = tool_input.get("reason", "")
+        diagnosis = tool_input.get("diagnosis", "")
+        prescription = tool_input.get("prescription", "")
+        next_visit = tool_input.get("next_visit", "")
+
+        if not person or not hospital or not reason:
+            return "対象者、病院名、受診理由を指定してください。"
+
+        try:
+            record = self.health_client.add_hospital_visit(
+                person=person,
+                hospital=hospital,
+                reason=reason,
+                diagnosis=diagnosis,
+                prescription=prescription,
+                next_visit=next_visit,
+            )
+
+            result = f"{person}の通院記録を追加しました。\n"
+            result += f"日付: {record.date}\n"
+            result += f"病院: {hospital}\n"
+            result += f"理由: {reason}"
+            if diagnosis:
+                result += f"\n診断: {diagnosis}"
+            if prescription:
+                result += f"\n処方: {prescription}"
+            if next_visit:
+                result += f"\n次回予約: {next_visit}"
+
+            return result
+
+        except Exception as e:
+            logger.error("Failed to record hospital visit", error=str(e))
+            return f"通院記録の追加に失敗しました: {str(e)}"
+
+    async def _get_health_info(self, tool_input: dict) -> str:
+        """健康情報を取得"""
+        if not self.health_client:
+            return "健康記録クライアントが設定されていません。"
+
+        person = tool_input.get("person")
+
+        try:
+            if person:
+                member = self.health_client.get_member_info(person)
+                if member:
+                    return self.health_client.format_member_info(member)
+                else:
+                    return f"{person}の健康情報は登録されていません。"
+            else:
+                # 全員の情報
+                lines = []
+                for name, member in self.health_client.family_members.items():
+                    lines.append(self.health_client.format_member_info(member))
+                    lines.append("")
+
+                if not lines:
+                    return "家族の健康情報が登録されていません。"
+                return "\n".join(lines).strip()
+
+        except Exception as e:
+            logger.error("Failed to get health info", error=str(e))
+            return f"健康情報の取得に失敗しました: {str(e)}"
+
+    async def _get_health_records(self, tool_input: dict) -> str:
+        """健康記録を取得"""
+        if not self.health_client:
+            return "健康記録クライアントが設定されていません。"
+
+        person = tool_input.get("person")
+        record_type = tool_input.get("record_type")
+        days = tool_input.get("days", 30)
+
+        try:
+            return self.health_client.format_recent_records(
+                person=person,
+                record_type=record_type,
+                days=days,
+            )
+        except Exception as e:
+            logger.error("Failed to get health records", error=str(e))
+            return f"健康記録の取得に失敗しました: {str(e)}"
 
 
 def get_tool_definitions() -> list[dict]:

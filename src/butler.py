@@ -15,10 +15,13 @@ from .clients.calendar import CalendarEvent, GoogleCalendarClient
 from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
+from .clients.expense import ExpenseClient
+from .clients.health import HealthClient
 from .clients.home_assistant import HomeAssistantClient
 from .clients.housework import HouseworkClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
+from .clients.school import SchoolClient
 from .clients.shopping_list import ShoppingListClient
 from .clients.today_info import TodayInfoClient
 from .clients.weather import WeatherClient
@@ -50,6 +53,9 @@ class Butler:
         shopping_list_client: Optional[ShoppingListClient] = None,
         housework_client: Optional[HouseworkClient] = None,
         home_assistant_client: Optional[HomeAssistantClient] = None,
+        expense_client: Optional[ExpenseClient] = None,
+        school_client: Optional[SchoolClient] = None,
+        health_client: Optional[HealthClient] = None,
         use_langgraph: bool = False,
     ):
         """初期化
@@ -68,6 +74,9 @@ class Butler:
             shopping_list_client: 買い物リストクライアント（オプション）
             housework_client: 家事記録クライアント（オプション）
             home_assistant_client: Home Assistantクライアント（オプション）
+            expense_client: 家計簿クライアント（オプション）
+            school_client: 学校情報クライアント（オプション）
+            health_client: 健康記録クライアント（オプション）
             use_langgraph: LangGraphエージェントを使用するかどうか
         """
         self.settings = settings
@@ -83,6 +92,9 @@ class Butler:
         self.shopping_list = shopping_list_client
         self.housework = housework_client
         self.home_assistant = home_assistant_client
+        self.expense = expense_client
+        self.school = school_client
+        self.health = health_client
         self.name = settings.butler_name
         self.use_langgraph = use_langgraph
 
@@ -105,6 +117,9 @@ class Butler:
             shopping_list_client=shopping_list_client,
             housework_client=housework_client,
             home_assistant_client=home_assistant_client,
+            expense_client=expense_client,
+            school_client=school_client,
+            health_client=health_client,
             family_data=self.family_data,
             timezone=settings.timezone,
         )

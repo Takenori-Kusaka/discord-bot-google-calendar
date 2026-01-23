@@ -15,8 +15,11 @@ from .clients.calendar import GoogleCalendarClient
 from .clients.claude import ClaudeClient
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
+from .clients.expense import ExpenseClient
+from .clients.health import HealthClient
 from .clients.home_assistant import HomeAssistantClient
 from .clients.housework import HouseworkClient
+from .clients.school import SchoolClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
 from .clients.shopping_list import ShoppingListClient
@@ -122,6 +125,18 @@ async def main():
     else:
         logger.info("Home Assistant client not configured (missing token)")
 
+    # 家計簿クライアント初期化
+    expense_client = ExpenseClient()
+    logger.info("Expense client initialized")
+
+    # 学校情報クライアント初期化
+    school_client = SchoolClient()
+    logger.info("School client initialized")
+
+    # 健康記録クライアント初期化
+    health_client = HealthClient()
+    logger.info("Health client initialized")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -137,6 +152,9 @@ async def main():
         shopping_list_client=shopping_list_client,
         housework_client=housework_client,
         home_assistant_client=home_assistant_client,
+        expense_client=expense_client,
+        school_client=school_client,
+        health_client=health_client,
         use_langgraph=settings.use_langgraph,
     )
 
