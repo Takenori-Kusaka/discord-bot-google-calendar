@@ -183,6 +183,24 @@ class EventSearchClient:
             except Exception as e:
                 logger.warning(f"Perplexity search failed: {e}")
 
+        # すべて失敗した場合は参考リンクを検索結果として追加
+        if not results and self.reference_links:
+            for link in self.reference_links:
+                results.append(
+                    {
+                        "title": f"{link.name}（公式）",
+                        "snippet": "公式サイトのイベント一覧をご確認ください。",
+                        "link": link.url,
+                        "source": "reference",
+                        "query": link.name,
+                    }
+                )
+            logger.info("Added reference links to search results", count=len(results))
+
+        # フィルタリングと重複排除
+        results = self._filter_results(results)
+        results = self._dedupe_results(results)
+
         return results
 
     async def _scrape_all_sources(self) -> list[dict]:
@@ -511,3 +529,190 @@ class EventSearchClient:
             lines.append(f"• [{link.name}]({link.url})")
 
         return "\n".join(lines)
+
+    def build_fallback_events(
+        self, search_results: list[dict], max_events: int = 5
+    ) -> list[dict]:
+        """抽出失敗時のフォールバック用イベントを生成
+
+        Args:
+            search_results: 検索結果
+            max_events: 最大件数
+
+        Returns:
+            list[dict]: イベント情報リスト
+        """
+        if not search_results:
+            return []
+
+        family_keywords = self.filtering_config.get("family_keywords", [])
+        exclude_keywords = self.filtering_config.get("exclude_keywords", [])
+
+        def score(item: dict) -> int:
+            text = f"{item.get('title', '')} {item.get('snippet', '')}"
+            s = 0
+            if any(k in text for k in family_keywords):
+                s += 2
+            if self._extract_date_from_text(text):
+                s += 1
+            if any(k in text for k in exclude_keywords):
+                s -= 5
+            return s
+
+        candidates = [r for r in search_results if score(r) >= 0]
+        candidates.sort(key=score, reverse=True)
+
+        events = []
+        for r in candidates[:max_events]:
+            text = f"{r.get('title', '')} {r.get('snippet', '')}"
+            date = self._extract_date_from_text(text) or "今週末（詳細未確認）"
+            events.append(
+                {
+                    "title": r.get("title", "イベント"),
+                    "date": date,
+                    "location": "",
+                    "description": (r.get("snippet", "") or "").strip()[:80],
+                    "target_audience": "不明",
+                    "url": r.get("link", ""),
+                }
+            )
+
+        return events
+
+    def build_events_from_results(
+        self, search_results: list[dict], max_events: int = 10
+    ) -> list[dict]:
+        """検索結果からイベント候補を生成（LLM無し）"""
+        if not search_results:
+            return []
+
+        family_keywords = self.filtering_config.get("family_keywords", [])
+        exclude_keywords = self.filtering_config.get("exclude_keywords", [])
+
+        now = datetime.now(self.timezone)
+
+        def score(item: dict) -> int:
+            text = f"{item.get('title', '')} {item.get('snippet', '')}"
+            s = 0
+            if any(k in text for k in family_keywords):
+                s += 2
+            if self._parse_month_day(text):
+                s += 1
+            if any(k in text for k in exclude_keywords):
+                s -= 5
+            return s
+
+        # 除外キーワードでフィルタ
+        candidates = []
+        for r in search_results:
+            text = f"{r.get('title', '')} {r.get('snippet', '')}"
+            if any(k in text for k in exclude_keywords):
+                continue
+            candidates.append(r)
+
+        # 重複排除（タイトル+URL）
+        candidates = self._dedupe_results(candidates)
+        candidates.sort(key=score, reverse=True)
+
+        events = []
+        for r in candidates:
+            if len(events) >= max_events:
+                break
+
+            text = f"{r.get('title', '')} {r.get('snippet', '')}"
+            month_day = self._parse_month_day(text)
+            date_label = "今週末（詳細未確認）"
+            if month_day:
+                month, day = month_day
+                try:
+                    dt = datetime(now.year, month, day, tzinfo=self.timezone)
+                    date_label = dt.strftime("%m/%d")
+                except Exception:
+                    date_label = f"{month:02d}/{day:02d}"
+
+            audience = "全年齢"
+            if any(k in text for k in family_keywords):
+                audience = "子供向け"
+
+            events.append(
+                {
+                    "title": r.get("title", "イベント"),
+                    "date": date_label,
+                    "location": "",
+                    "description": (r.get("snippet", "") or "").strip()[:80],
+                    "target_audience": audience,
+                    "url": r.get("link", ""),
+                }
+            )
+
+        return events
+
+    def build_reference_events(self) -> list[dict]:
+        """参考リンクから最低限のイベント情報を生成"""
+        if not self.reference_links:
+            return []
+
+        events = []
+        for link in self.reference_links:
+            events.append(
+                {
+                    "title": link.name,
+                    "date": "今週末（詳細未確認）",
+                    "location": "",
+                    "description": "最新情報はリンク先をご確認ください。",
+                    "target_audience": "不明",
+                    "url": link.url,
+                }
+            )
+
+        return events
+
+    def _dedupe_results(self, results: list[dict]) -> list[dict]:
+        """検索結果の重複排除"""
+        seen: set[tuple[str, str]] = set()
+        deduped = []
+        for r in results:
+            key = (r.get("title", ""), r.get("link", ""))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(r)
+        return deduped
+
+    def _filter_results(self, results: list[dict]) -> list[dict]:
+        """除外キーワードによるフィルタ"""
+        exclude_keywords = self.filtering_config.get("exclude_keywords", [])
+        if not exclude_keywords:
+            return results
+
+        filtered = []
+        for r in results:
+            text = f"{r.get('title', '')} {r.get('snippet', '')}"
+            if any(k in text for k in exclude_keywords):
+                continue
+            filtered.append(r)
+        return filtered
+
+    def _extract_date_from_text(self, text: str) -> str:
+        """テキストから簡易的に日付を抽出"""
+        import re
+
+        m = re.search(r"(\d{1,2})月(\d{1,2})日", text)
+        if m:
+            return f"{int(m.group(1)):02d}/{int(m.group(2)):02d}"
+        m = re.search(r"(\d{1,2})/(\d{1,2})", text)
+        if m:
+            return f"{int(m.group(1)):02d}/{int(m.group(2)):02d}"
+        return ""
+
+    def _parse_month_day(self, text: str) -> tuple[int, int] | None:
+        """テキストから月日を抽出"""
+        import re
+
+        m = re.search(r"(\d{1,2})月(\d{1,2})日", text)
+        if m:
+            return int(m.group(1)), int(m.group(2))
+        m = re.search(r"(\d{1,2})/(\d{1,2})", text)
+        if m:
+            return int(m.group(1)), int(m.group(2))
+        return None

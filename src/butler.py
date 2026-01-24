@@ -4,8 +4,12 @@ LangGraphモードが有効な場合は、LangGraphベースのエージェン�
 無効な場合は、既存のClaudeClient.chat_with_toolsを使用します。
 """
 
+import hashlib
+import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -98,6 +102,9 @@ class Butler:
         self.name = settings.butler_name
         self.use_langgraph = use_langgraph
 
+        # 状態保存パス
+        self.state_path = self._get_state_path()
+
         # フィルタリングルールを読み込み
         self.ignore_patterns = self._load_rules("config/ignore_rules.yml")
         self.notify_patterns = self._load_rules("config/notify_rules.yml")
@@ -171,6 +178,75 @@ class Butler:
         except Exception as e:
             logger.warning(f"Failed to load family data: {e}")
         return {}
+
+    def _get_state_path(self) -> Path:
+        """状態保存パスを取得"""
+        log_dir = self.settings.log_dir or Path(".")
+        try:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            return log_dir / "butler_state.json"
+        except Exception:
+            return Path("butler_state.json")
+
+    def _load_state(self) -> dict[str, Any]:
+        """状態を読み込み"""
+        try:
+            if self.state_path.exists():
+                with open(self.state_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.warning("Failed to load state", error=str(e))
+        return {}
+
+    def _save_state(self, state: dict[str, Any]) -> None:
+        """状態を保存"""
+        try:
+            with open(self.state_path, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.warning("Failed to save state", error=str(e))
+
+    def _weekly_event_key(self, now: datetime) -> str:
+        """週次イベント用のキーを生成"""
+        iso_year, iso_week, _ = now.isocalendar()
+        return f"{iso_year}-W{iso_week:02d}"
+
+    def _hash_message(self, message: str) -> str:
+        return hashlib.sha256(message.strip().encode("utf-8")).hexdigest()
+
+    async def _should_skip_weekly_event_notification(self, message: str) -> bool:
+        """週次イベント通知の重複判定"""
+        now = datetime.now(ZoneInfo(self.settings.timezone))
+        state = self._load_state()
+        last = state.get("weekly_events", {})
+        week_key = self._weekly_event_key(now)
+        message_hash = self._hash_message(message)
+
+        if last.get("week_key") == week_key and last.get("hash") == message_hash:
+            logger.info("Weekly event notification already sent (state)")
+            return True
+
+        # Discord上の最新メッセージと比較
+        is_dup = await self.discord.is_duplicate_message(
+            self.settings.discord_channel_region,
+            message,
+        )
+        if is_dup:
+            logger.info("Weekly event notification already sent (channel history)")
+            return True
+
+        return False
+
+    def _record_weekly_event_sent(self, message: str) -> None:
+        """週次イベント通知の送信記録"""
+        now = datetime.now(ZoneInfo(self.settings.timezone))
+        state = self._load_state()
+        state["weekly_events"] = {
+            "week_key": self._weekly_event_key(now),
+            "hash": self._hash_message(message),
+            "sent_at": now.isoformat(),
+        }
+        self._save_state(state)
 
     def _get_family_context(self) -> str:
         """家族情報をコンテキスト文字列に変換"""
@@ -284,6 +360,15 @@ class Butler:
             events = await self.claude.extract_events_from_search(search_results)
             logger.info(f"Extracted {len(events)} events")
 
+            # 抽出失敗時はフォールバックを生成
+            if not events and search_results:
+                events = self.event_search.build_events_from_results(search_results)
+                logger.info(f"Events built from results: {len(events)}")
+
+            if not events:
+                events = self.event_search.build_reference_events()
+                logger.info(f"Reference events built: {len(events)}")
+
             # 3. 家族向けおすすめメッセージを生成
             message = await self.claude.generate_event_recommendation(
                 events,
@@ -295,6 +380,10 @@ class Butler:
             if reference_links:
                 message = message + reference_links
 
+            # 重複チェック
+            if await self._should_skip_weekly_event_notification(message):
+                return
+
             # 5. Discordに送信
             success = await self.discord.send_to_channel(
                 self.settings.discord_channel_region,
@@ -303,6 +392,7 @@ class Butler:
 
             if success:
                 logger.info("Weekly event notification sent successfully")
+                self._record_weekly_event_sent(message)
             else:
                 raise Exception("Failed to send message to Discord")
 

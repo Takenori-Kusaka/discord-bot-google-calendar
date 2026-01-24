@@ -228,6 +228,32 @@ class DiscordClient:
         if not channel:
             return False
 
+    async def is_duplicate_message(
+        self, channel_name: str, message: str, limit: int = 3
+    ) -> bool:
+        """直近メッセージとの重複判定
+
+        Args:
+            channel_name: チャンネル名
+            message: 比較するメッセージ
+            limit: 直近取得件数
+
+        Returns:
+            bool: 重複している場合True
+        """
+        channel = self.get_channel_by_name(channel_name)
+        if not channel:
+            return False
+
+        try:
+            async for msg in channel.history(limit=limit):
+                if msg.author == self.bot.user and msg.content.strip() == message.strip():
+                    return True
+        except Exception as e:
+            logger.warning("Failed to check channel history", error=str(e))
+
+        return False
+
         try:
             await channel.send(message)
             logger.info(

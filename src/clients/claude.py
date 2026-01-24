@@ -222,43 +222,73 @@ class ClaudeClient:
             list[dict]: 抽出されたイベント情報
         """
         if not search_results:
+            logger.warning("No search results provided for event extraction")
             return []
 
-        # 検索結果をテキストに変換
+        # 今週末の日付を計算
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+
+        tz = ZoneInfo("Asia/Tokyo")
+        now = datetime.now(tz)
+        # 今週の土曜日を計算 (weekday: 月=0, 土=5)
+        days_until_saturday = (5 - now.weekday()) % 7
+        if days_until_saturday == 0 and now.hour >= 18:
+            # 土曜の18時以降は来週末
+            days_until_saturday = 7
+        saturday = now + timedelta(days=days_until_saturday)
+        sunday = saturday + timedelta(days=1)
+
+        saturday_str = saturday.strftime("%m/%d")
+        sunday_str = sunday.strftime("%m/%d")
+        year = saturday.year
+
+        logger.info(
+            f"Extracting events for weekend: {saturday_str}〜{sunday_str}, "
+            f"search_results_count={len(search_results)}"
+        )
+
+        # 検索結果をテキストに変換（最大40件に制限してトークン節約）
+        limited_results = search_results[:40]
         results_text = "\n\n".join(
             [
                 f"【{r.get('query', '')}】\n"
                 f"タイトル: {r.get('title', '')}\n"
                 f"内容: {r.get('snippet', '')}\n"
                 f"URL: {r.get('link', '')}"
-                for r in search_results
+                for r in limited_results
             ]
         )
 
-        prompt = f"""以下の検索結果から、今週末（土曜・日曜）に開催されるイベント情報を抽出してください。
+        prompt = f"""あなたは地域イベント情報を抽出するアシスタントです。
+以下の検索結果から、今週末に開催されるイベント情報を抽出してください。
 
-## 検索結果
+## 今週末の日付
+- 今日: {now.strftime('%Y年%m月%d日(%a)')}
+- 対象日: {year}年{saturday_str}(土) 〜 {sunday_str}(日)
+
+## 検索結果（{len(limited_results)}件）
 {results_text}
 
-## 抽出対象
-- イベント名
-- 開催日時
-- 開催場所
-- 概要（50文字程度）
-- 対象年齢層（子供向け、大人向け、全年齢など）
-- 情報元URL
+## 抽出ルール
+1. 今週末（{saturday_str}〜{sunday_str}）に開催されるイベントを抽出
+2. 日程が明確に記載されていないイベントも、週末開催の可能性があれば含める
+3. 子供連れで参加できそうなイベントを優先
+4. 同じイベントの重複は除外
 
 ## 出力形式
-JSON配列で出力してください。イベントが見つからない場合は空配列を返してください。
+必ずJSON配列のみを出力してください。説明文は不要です。
+イベントが見つからない場合でも空配列[]を返してください。
+
 ```json
 [
   {{
     "title": "イベント名",
-    "date": "MM/DD(曜) HH:MM〜",
-    "location": "場所",
-    "description": "概要",
-    "target_audience": "対象年齢層",
-    "url": "URL"
+    "date": "{saturday_str}(土) 10:00〜",
+    "location": "開催場所",
+    "description": "概要（50文字以内）",
+    "target_audience": "全年齢/子供向け/大人向け",
+    "url": "情報元URL"
   }}
 ]
 ```
@@ -272,20 +302,33 @@ JSON配列で出力してください。イベントが見つからない場合�
             )
 
             content = response.content[0].text
+            logger.debug(f"Claude response (first 500 chars): {content[:500]}")
 
             # JSON部分を抽出
             start_idx = content.find("[")
             end_idx = content.rfind("]") + 1
             if start_idx >= 0 and end_idx > start_idx:
-                events = json.loads(content[start_idx:end_idx])
+                json_str = content[start_idx:end_idx]
+                try:
+                    events = json.loads(json_str)
+                except json.JSONDecodeError as je:
+                    logger.error(
+                        f"JSON parse error: {je}, json_str={json_str[:200]}"
+                    )
+                    events = []
             else:
+                logger.warning(
+                    f"No JSON array found in response. "
+                    f"start_idx={start_idx}, end_idx={end_idx}, "
+                    f"content_preview={content[:300]}"
+                )
                 events = []
 
             logger.info(f"Extracted {len(events)} events from search results")
             return events
 
         except Exception as e:
-            logger.error(f"Failed to extract events: {e}")
+            logger.error(f"Failed to extract events: {e}", exc_info=True)
             return []
 
     async def generate_event_recommendation(
