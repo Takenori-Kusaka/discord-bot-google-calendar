@@ -239,9 +239,10 @@ class ClaudeClient:
         saturday = now + timedelta(days=days_until_saturday)
         sunday = saturday + timedelta(days=1)
 
-        saturday_str = saturday.strftime("%m/%d")
-        sunday_str = sunday.strftime("%m/%d")
-        year = saturday.year
+        saturday_str = saturday.strftime("%Y/%m/%d")
+        sunday_str = sunday.strftime("%Y/%m/%d")
+        saturday_short = saturday.strftime("%m/%d")
+        sunday_short = sunday.strftime("%m/%d")
 
         logger.info(
             f"Extracting events for weekend: {saturday_str}〜{sunday_str}, "
@@ -265,7 +266,7 @@ class ClaudeClient:
 
 ## 今週末の日付
 - 今日: {now.strftime('%Y年%m月%d日(%a)')}
-- 対象日: {year}年{saturday_str}(土) 〜 {sunday_str}(日)
+- 対象日: {saturday_str}(土) 〜 {sunday_str}(日)
 
 ## 検索結果（{len(limited_results)}件）
 {results_text}
@@ -284,7 +285,7 @@ class ClaudeClient:
 [
   {{
     "title": "イベント名",
-    "date": "{saturday_str}(土) 10:00〜",
+    "date": "{saturday_short}(土) 10:00〜",
     "location": "開催場所",
     "description": "概要（50文字以内）",
     "target_audience": "全年齢/子供向け/大人向け",
