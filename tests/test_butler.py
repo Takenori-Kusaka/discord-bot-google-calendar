@@ -15,6 +15,9 @@ def mock_settings():
     settings = MagicMock()
     settings.butler_name = "黒田"
     settings.discord_channel_schedule = "予定"
+    settings.discord_channel_region = "地域のこと"
+    settings.timezone = "Asia/Tokyo"
+    settings.log_dir = None
     return settings
 
 
@@ -162,10 +165,13 @@ class TestButler:
         mock_calendar_client,
         mock_claude_client,
         mock_discord_client,
+        tmp_path,
     ):
         """週次イベント通知が正常に送信される"""
         # Arrange
         mock_settings.discord_channel_region = "地域のこと"
+        mock_settings.log_dir = tmp_path  # tmp_pathを使って状態ファイルを隔離
+        mock_discord_client.is_duplicate_message = AsyncMock(return_value=False)
         mock_event_search = AsyncMock()
         mock_event_search.search_events.return_value = [
             {"title": "高の原イベント", "snippet": "テスト"}

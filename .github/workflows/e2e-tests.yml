@@ -1,0 +1,67 @@
+name: E2E Tests (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_level:
+        description: 'テストレベル'
+        required: true
+        default: 'weather_only'
+        type: choice
+        options:
+          - weather_only
+          - all_free_apis
+          - full_with_paid_apis
+
+jobs:
+  e2e-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load cached Poetry virtualenv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --no-root --with dev
+
+    - name: Run Weather API E2E tests (free)
+      if: inputs.test_level == 'weather_only'
+      run: |
+        poetry run pytest -v tests/e2e -k "TestWeatherClientE2E"
+
+    - name: Run all free API E2E tests
+      if: inputs.test_level == 'all_free_apis'
+      env:
+        GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        GOOGLE_SEARCH_ENGINE_ID: ${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
+      run: |
+        poetry run pytest -v tests/e2e -k "not ClaudeClient"
+
+    - name: Run full E2E tests (with paid APIs)
+      if: inputs.test_level == 'full_with_paid_apis'
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        GOOGLE_SEARCH_ENGINE_ID: ${{ secrets.GOOGLE_SEARCH_ENGINE_ID }}
+      run: |
+        poetry run pytest -v tests/e2e

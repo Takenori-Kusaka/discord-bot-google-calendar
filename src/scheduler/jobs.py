@@ -65,6 +65,9 @@ def setup_scheduler(
         id="morning_notification",
         name="朝の予定通知",
         replace_existing=True,
+        misfire_grace_time=300,  # 5分以内の遅延実行を許可
+        coalesce=True,  # 複数回分をまとめて1回だけ実行
+        max_instances=1,  # 同時に1インスタンスのみ実行
     )
     logger.info(
         "Morning notification job scheduled",
@@ -85,6 +88,9 @@ def setup_scheduler(
             id="weekly_events",
             name="週次イベント通知",
             replace_existing=True,
+            misfire_grace_time=300,  # 5分以内の遅延実行を許可
+            coalesce=True,  # 複数回分をまとめて1回だけ実行
+            max_instances=1,  # 同時に1インスタンスのみ実行
         )
         logger.info(
             "Weekly events job scheduled",
@@ -105,6 +111,9 @@ def setup_scheduler(
             id="weekly_life_info",
             name="週次生活影響情報通知",
             replace_existing=True,
+            misfire_grace_time=300,  # 5分以内の遅延実行を許可
+            coalesce=True,  # 複数回分をまとめて1回だけ実行
+            max_instances=1,  # 同時に1インスタンスのみ実行
         )
         logger.info(
             "Weekly life info job scheduled",

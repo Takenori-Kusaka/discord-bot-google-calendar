@@ -358,14 +358,21 @@ class Butler:
 
             # 2. 検索結果からイベント情報を抽出
             events = await self.claude.extract_events_from_search(search_results)
-            logger.info(f"Extracted {len(events)} events")
+            logger.info(f"Extracted {len(events)} events from Claude")
 
             # 抽出失敗時はフォールバックを生成
             if not events and search_results:
+                logger.warning(
+                    "Claude extraction returned empty, falling back to build_events_from_results",
+                    search_results_count=len(search_results),
+                )
                 events = self.event_search.build_events_from_results(search_results)
                 logger.info(f"Events built from results: {len(events)}")
 
             if not events:
+                logger.warning(
+                    "No events found from any source, using reference events as fallback"
+                )
                 events = self.event_search.build_reference_events()
                 logger.info(f"Reference events built: {len(events)}")
 

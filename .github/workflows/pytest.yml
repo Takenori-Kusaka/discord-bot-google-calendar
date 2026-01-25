@@ -40,8 +40,9 @@ jobs:
         curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b $GITHUB_WORKSPACE/bin
         echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
 
-    - name: Run tests with pytest and Reviewdog
+    - name: Run unit and integration tests with pytest
       env:
         REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        poetry run pytest -v --color=yes tests/ | reviewdog -f=pytest -reporter=github-pr-review -fail-on-error
+        # E2Eテストは実際のAPIを呼び出すためCIではスキップ
+        poetry run pytest -v --color=yes tests/ --ignore=tests/e2e | reviewdog -f=pytest -reporter=github-pr-review -fail-on-error
