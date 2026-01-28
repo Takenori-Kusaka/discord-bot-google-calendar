@@ -72,7 +72,7 @@ class Settings(BaseSettings):
 
     # エージェント設定
     use_langgraph: bool = Field(
-        default=False, description="LangGraphエージェントを使用するかどうか"
+        default=True, description="LangGraphエージェントを使用するかどうか"
     )
 
 
