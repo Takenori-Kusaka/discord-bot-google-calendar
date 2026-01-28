@@ -140,7 +140,8 @@ class ClaudeClient:
 
             # 整数に変換し、範囲外のインデックスを除外
             valid_indices = [
-                int(i) for i in important_indices
+                int(i)
+                for i in important_indices
                 if isinstance(i, (int, str)) and 0 <= int(i) < len(events)
             ]
 
