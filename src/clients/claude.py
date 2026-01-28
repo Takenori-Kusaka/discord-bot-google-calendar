@@ -77,12 +77,23 @@ class ClaudeClient:
         if not events:
             return []
 
-        # イベント情報をJSON形式に変換
-        events_json = json.dumps(
-            [e.to_dict() for e in events],
-            ensure_ascii=False,
-            indent=2,
-        )
+        # イベント情報をインデックス付きで変換（IDではなくインデックスで照合）
+        events_for_prompt = []
+        for i, e in enumerate(events):
+            event_dict = {
+                "index": i,
+                "summary": e.summary,
+                "start": e.start.isoformat(),
+                "end": e.end.isoformat(),
+                "all_day": e.all_day,
+            }
+            if e.location:
+                event_dict["location"] = e.location
+            if e.description:
+                event_dict["description"] = e.description
+            events_for_prompt.append(event_dict)
+
+        events_json = json.dumps(events_for_prompt, ensure_ascii=False, indent=2)
 
         prompt = f"""あなたは家庭の執事として、ご主人様の予定を管理しています。
 以下の予定リストから、本日特に注意が必要な予定をピックアップしてください。
@@ -106,8 +117,8 @@ class ClaudeClient:
 {events_json}
 
 ## 出力形式
-重要な予定のIDをJSON配列で返してください。例: ["id1", "id2"]
-予定がない場合は空の配列を返してください: []
+重要な予定のインデックス番号をJSON配列で返してください。例: [0, 2]
+重要な予定がない場合は空の配列を返してください: []
 """
 
         try:
@@ -117,24 +128,30 @@ class ClaudeClient:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            # レスポンスからIDリストを抽出
+            # レスポンスからインデックスリストを抽出
             content = response.content[0].text
             # JSON部分を抽出
             start_idx = content.find("[")
             end_idx = content.rfind("]") + 1
             if start_idx >= 0 and end_idx > start_idx:
-                important_ids = json.loads(content[start_idx:end_idx])
+                important_indices = json.loads(content[start_idx:end_idx])
             else:
-                important_ids = []
+                important_indices = []
+
+            # 整数に変換し、範囲外のインデックスを除外
+            valid_indices = [
+                int(i) for i in important_indices
+                if isinstance(i, (int, str)) and 0 <= int(i) < len(events)
+            ]
 
             logger.info(
                 "Filtered important events",
                 total=len(events),
-                important=len(important_ids),
+                important=len(valid_indices),
             )
 
-            # IDでフィルタリング
-            return [e for e in events if e.id in important_ids]
+            # インデックスでフィルタリング
+            return [events[i] for i in valid_indices]
 
         except Exception as e:
             logger.error("Failed to filter events", error=str(e))

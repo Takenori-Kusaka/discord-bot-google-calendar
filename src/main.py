@@ -82,7 +82,10 @@ async def main():
     logger.info("Weather client initialized")
 
     # 今日は何の日クライアント初期化
-    today_info_client = TodayInfoClient(timezone=settings.timezone)
+    today_info_client = TodayInfoClient(
+        timezone=settings.timezone,
+        perplexity_api_key=settings.perplexity_api_key,
+    )
     logger.info("TodayInfo client initialized")
 
     # 生活影響情報クライアント初期化

@@ -63,9 +63,9 @@ class TestFilterImportantEvents(TestClaudeClient):
         self, claude_client, mock_anthropic_client, sample_events
     ):
         """重要なイベントをフィルタリング"""
-        # モックレスポンス - IDリストを返す
+        # モックレスポンス - インデックスリストを返す
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='["event-001"]')]
+        mock_response.content = [MagicMock(text="[0]")]
         mock_anthropic_client.messages.create.return_value = mock_response
 
         result = await claude_client.filter_important_events(
