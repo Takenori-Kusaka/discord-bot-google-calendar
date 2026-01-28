@@ -151,9 +151,7 @@ class TestSendToChannel(TestDiscordClient):
         """送信エラーの場合"""
         mock_bot.get_guild.return_value = mock_guild
         schedule_channel = mock_guild.text_channels[0]
-        schedule_channel.send.side_effect = discord.HTTPException(
-            MagicMock(), "Error"
-        )
+        schedule_channel.send.side_effect = discord.HTTPException(MagicMock(), "Error")
 
         result = await discord_client.send_to_channel("予定", "テストメッセージ")
 

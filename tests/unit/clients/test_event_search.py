@@ -118,9 +118,7 @@ class TestSearchEvents:
     @pytest.mark.asyncio
     async def test_search_events_google_api_fallback(self, event_search_client):
         """スクレイピング失敗時にGoogle APIへフォールバック"""
-        google_results = [
-            {"title": "Google検索結果", "link": "https://example.com"}
-        ]
+        google_results = [{"title": "Google検索結果", "link": "https://example.com"}]
 
         with patch.object(
             event_search_client, "_scrape_all_sources", new_callable=AsyncMock
@@ -180,7 +178,9 @@ class TestGoogleSearch:
         mock_session.get = MagicMock(return_value=mock_get_context)
 
         # _google_searchはinternalメソッドなのでセッションを直接渡す
-        results = await event_search_client._google_search(mock_session, "高の原 イベント")
+        results = await event_search_client._google_search(
+            mock_session, "高の原 イベント"
+        )
 
         assert len(results) == 1
         assert results[0]["title"] == "週末イベント情報"
@@ -198,7 +198,9 @@ class TestGoogleSearch:
         mock_session = MagicMock()
         mock_session.get = MagicMock(return_value=mock_get_context)
 
-        results = await event_search_client._google_search(mock_session, "高の原 イベント")
+        results = await event_search_client._google_search(
+            mock_session, "高の原 イベント"
+        )
 
         assert results == []
 
@@ -435,4 +437,6 @@ class TestSchedulerIntegration:
             assert job.max_instances == 1, f"Job {job.id} should have max_instances=1"
             assert job.coalesce is True, f"Job {job.id} should have coalesce=True"
             # misfire_grace_time は None でなければOK（設定されている）
-            assert job.misfire_grace_time is not None, f"Job {job.id} should have misfire_grace_time set"
+            assert (
+                job.misfire_grace_time is not None
+            ), f"Job {job.id} should have misfire_grace_time set"

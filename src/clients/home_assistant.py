@@ -87,7 +87,9 @@ class HomeAssistantClient:
             url: Home Assistant URL (例: http://192.168.68.79:8123)
             token: Long-lived access token
         """
-        self.url = url or os.environ.get("HOME_ASSISTANT_URL", "http://192.168.68.79:8123")
+        self.url = url or os.environ.get(
+            "HOME_ASSISTANT_URL", "http://192.168.68.79:8123"
+        )
         self.token = token or os.environ.get("HOME_ASSISTANT_TOKEN", "")
 
         if not self.token:

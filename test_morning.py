@@ -1,4 +1,5 @@
 """朝の通知機能テスト"""
+
 import asyncio
 import sys
 from dotenv import load_dotenv

@@ -83,9 +83,12 @@ class TestGoogleCalendarClient:
     @pytest.fixture
     def calendar_client(self, mock_service):
         """GoogleCalendarClientのインスタンス（モック済み）"""
-        with patch(
-            "src.clients.calendar.service_account.Credentials.from_service_account_file"
-        ) as mock_creds, patch("src.clients.calendar.build") as mock_build:
+        with (
+            patch(
+                "src.clients.calendar.service_account.Credentials.from_service_account_file"
+            ) as mock_creds,
+            patch("src.clients.calendar.build") as mock_build,
+        ):
             mock_build.return_value = mock_service
             client = GoogleCalendarClient(
                 calendar_id="test-calendar@example.com",

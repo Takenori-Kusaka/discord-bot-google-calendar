@@ -144,7 +144,9 @@ class TestWeatherClient:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_cm):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession", return_value=mock_session_cm
+        ):
             weather = await weather_client.get_today_weather()
 
             assert weather is not None
@@ -169,7 +171,10 @@ class TestWeatherClient:
         mock_session_context.__aenter__.return_value = mock_session
         mock_session_context.__aexit__.return_value = None
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_context):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession",
+            return_value=mock_session_context,
+        ):
             weather = await weather_client.get_today_weather()
 
             assert weather is None
@@ -192,7 +197,10 @@ class TestWeatherClient:
         mock_session_context.__aenter__.return_value = mock_session
         mock_session_context.__aexit__.return_value = None
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_context):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession",
+            return_value=mock_session_context,
+        ):
             weather = await weather_client.get_today_weather()
 
             assert weather is None
@@ -210,7 +218,10 @@ class TestWeatherClient:
         mock_session_context.__aenter__.return_value = mock_session
         mock_session_context.__aexit__.return_value = None
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_context):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession",
+            return_value=mock_session_context,
+        ):
             weather = await weather_client.get_today_weather()
 
             assert weather is None
@@ -244,7 +255,9 @@ class TestWeatherClient:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_cm):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession", return_value=mock_session_cm
+        ):
             forecasts = await weather_client.get_weather_forecast(days=3)
 
             assert len(forecasts) == 3
@@ -269,7 +282,10 @@ class TestWeatherClient:
         mock_session_context.__aenter__.return_value = mock_session
         mock_session_context.__aexit__.return_value = None
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_context):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession",
+            return_value=mock_session_context,
+        ):
             forecasts = await weather_client.get_weather_forecast(days=7)
 
             assert forecasts == []
@@ -312,7 +328,9 @@ class TestWeatherClient:
         mock_session_cm.__aenter__ = AsyncMock(return_value=mock_session)
         mock_session_cm.__aexit__ = AsyncMock(return_value=None)
 
-        with patch("src.clients.weather.aiohttp.ClientSession", return_value=mock_session_cm):
+        with patch(
+            "src.clients.weather.aiohttp.ClientSession", return_value=mock_session_cm
+        ):
             weather = await weather_client.get_today_weather()
 
             assert weather is not None

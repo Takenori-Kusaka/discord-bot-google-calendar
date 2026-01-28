@@ -26,7 +26,9 @@ class TestSettingsDefault:
             # Fieldのdefault値を直接確認
             field_info = Settings.model_fields.get("use_langgraph")
             assert field_info is not None
-            assert field_info.default is True, "use_langgraphのデフォルト値はTrueであるべき"
+            assert (
+                field_info.default is True
+            ), "use_langgraphのデフォルト値はTrueであるべき"
 
 
 class TestMultimodalMessageConstruction:
@@ -114,7 +116,9 @@ class TestMultimodalMessageConstruction:
             )
 
         # 構造の確認
-        assert len(content) == 2  # 画像 + ヒント（テキストなしなので元のテキストはない）
+        assert (
+            len(content) == 2
+        )  # 画像 + ヒント（テキストなしなので元のテキストはない）
         assert content[0]["type"] == "image_url"
         assert content[1]["type"] == "text"
         assert "イベント" in content[1]["text"]
@@ -225,7 +229,9 @@ class TestRunButlerAgentWithImages:
                 assert isinstance(human_msg.content, list)
                 # イベント抽出ヒントが追加されていること
                 text_contents = [
-                    c.get("text", "") for c in human_msg.content if c.get("type") == "text"
+                    c.get("text", "")
+                    for c in human_msg.content
+                    if c.get("type") == "text"
                 ]
                 hint_found = any("イベント" in text for text in text_contents)
                 assert hint_found, "イベント抽出ヒントが追加されていない"
@@ -339,13 +345,12 @@ class TestButlerHandleMessageWithImages:
         """LangGraphモードで画像がrun_butler_agentに渡されること"""
         from src.butler import Butler
 
-        images = [
-            {"type": "base64", "media_type": "image/jpeg", "data": "testdata"}
-        ]
+        images = [{"type": "base64", "media_type": "image/jpeg", "data": "testdata"}]
 
-        with patch("src.butler.Path.exists", return_value=False), patch(
-            "src.butler.run_butler_agent"
-        ) as mock_run_agent:
+        with (
+            patch("src.butler.Path.exists", return_value=False),
+            patch("src.butler.run_butler_agent") as mock_run_agent,
+        ):
             mock_run_agent.return_value = "画像を確認いたしました。"
 
             butler = Butler(
@@ -376,9 +381,10 @@ class TestButlerHandleMessageWithImages:
         """LangGraphモードがデフォルトで有効であること"""
         from src.butler import Butler
 
-        with patch("src.butler.Path.exists", return_value=False), patch(
-            "src.butler.run_butler_agent"
-        ) as mock_run_agent:
+        with (
+            patch("src.butler.Path.exists", return_value=False),
+            patch("src.butler.run_butler_agent") as mock_run_agent,
+        ):
             mock_run_agent.return_value = "応答"
 
             # use_langgraphを明示的に指定しない場合

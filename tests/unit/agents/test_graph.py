@@ -93,7 +93,7 @@ class TestCompileButlerGraph:
 
 class TestRunButlerAgent:
     """run_butler_agent関数のテスト
-    
+
     LLMをモックして、実際のAPIコールなしでエージェントをテスト。
     """
 
@@ -142,21 +142,23 @@ class TestRunButlerAgent:
                 ToolCall(
                     name="get_calendar_events",
                     args={"date_range": "today"},
-                    id="call_001"
+                    id="call_001",
                 )
-            ]
+            ],
         )
         second_response = AIMessage(
             content="本日の予定は以下の通りでございます。10時からミーティングがございます。"
         )
-        
+
         mock_llm = self._create_mock_llm([first_response, second_response])
 
         # ツール実行結果を設定
-        mock_tool_executor.execute = AsyncMock(return_value=MagicMock(
-            content="10:00: ミーティング",
-            is_error=False,
-        ))
+        mock_tool_executor.execute = AsyncMock(
+            return_value=MagicMock(
+                content="10:00: ミーティング",
+                is_error=False,
+            )
+        )
 
         with patch("src.agents.graph.ChatAnthropic", return_value=mock_llm):
             result = await run_butler_agent(
@@ -335,19 +337,19 @@ class TestGraphRouting:
         # ツール呼び出し→結果→最終応答のシーケンス
         first_response = AIMessage(
             content="",
-            tool_calls=[
-                ToolCall(name="get_weather", args={}, id="call_weather")
-            ]
+            tool_calls=[ToolCall(name="get_weather", args={}, id="call_weather")],
         )
         second_response = AIMessage(
             content="本日は晴れでございます。最高気温は15度の予報でございます。"
         )
         mock_llm = self._create_mock_llm([first_response, second_response])
 
-        mock_tool_executor.execute = AsyncMock(return_value=MagicMock(
-            content="晴れ、最高気温15度",
-            is_error=False,
-        ))
+        mock_tool_executor.execute = AsyncMock(
+            return_value=MagicMock(
+                content="晴れ、最高気温15度",
+                is_error=False,
+            )
+        )
 
         with patch("src.agents.graph.ChatAnthropic", return_value=mock_llm):
             result = await run_butler_agent(
@@ -368,17 +370,17 @@ class TestGraphRouting:
             tool_calls=[
                 ToolCall(name="get_calendar_events", args={}, id="call_1"),
                 ToolCall(name="get_weather", args={}, id="call_2"),
-            ]
+            ],
         )
-        second_response = AIMessage(
-            content="本日の予定は3件、天気は晴れでございます。"
-        )
+        second_response = AIMessage(content="本日の予定は3件、天気は晴れでございます。")
         mock_llm = self._create_mock_llm([first_response, second_response])
 
-        mock_tool_executor.execute = AsyncMock(side_effect=[
-            MagicMock(content="予定3件", is_error=False),
-            MagicMock(content="晴れ", is_error=False),
-        ])
+        mock_tool_executor.execute = AsyncMock(
+            side_effect=[
+                MagicMock(content="予定3件", is_error=False),
+                MagicMock(content="晴れ", is_error=False),
+            ]
+        )
 
         with patch("src.agents.graph.ChatAnthropic", return_value=mock_llm):
             result = await run_butler_agent(

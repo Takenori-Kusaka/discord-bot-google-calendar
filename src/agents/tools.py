@@ -1424,7 +1424,9 @@ class ToolExecutor:
             query_parts = []
 
             if ingredients:
-                query_parts.append(f"以下の材料を使ったレシピを教えてください: {ingredients}")
+                query_parts.append(
+                    f"以下の材料を使ったレシピを教えてください: {ingredients}"
+                )
             else:
                 query_parts.append("おすすめのレシピを教えてください")
 

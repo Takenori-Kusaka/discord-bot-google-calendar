@@ -263,7 +263,10 @@ class DiscordClient:
 
         try:
             async for msg in channel.history(limit=limit):
-                if msg.author == self.bot.user and msg.content.strip() == message.strip():
+                if (
+                    msg.author == self.bot.user
+                    and msg.content.strip() == message.strip()
+                ):
                     return True
         except Exception as e:
             logger.warning("Failed to check channel history", error=str(e))

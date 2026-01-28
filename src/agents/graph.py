@@ -532,7 +532,9 @@ def create_langchain_tools():
     # ========================================
 
     @tool
-    def record_symptom(person: str, symptom: str, temperature: float = None, notes: str = "") -> str:
+    def record_symptom(
+        person: str, symptom: str, temperature: float = None, notes: str = ""
+    ) -> str:
         """家族の症状・体調不良を記録します。体温も記録できます。
 
         Args:
@@ -574,7 +576,9 @@ def create_langchain_tools():
         return f"get_health_info called: {person}"
 
     @tool
-    def get_health_records(person: str = "", record_type: str = "", days: int = 30) -> str:
+    def get_health_records(
+        person: str = "", record_type: str = "", days: int = 30
+    ) -> str:
         """健康記録（症状、通院、服薬など）を取得します。
 
         Args:

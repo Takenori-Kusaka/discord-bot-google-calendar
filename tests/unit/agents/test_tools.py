@@ -5,7 +5,12 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from zoneinfo import ZoneInfo
 
-from src.agents.tools import ToolExecutor, ToolResult, TOOL_DEFINITIONS, get_tool_definitions
+from src.agents.tools import (
+    ToolExecutor,
+    ToolResult,
+    TOOL_DEFINITIONS,
+    get_tool_definitions,
+)
 from src.clients.calendar import CalendarEvent
 from src.clients.weather import WeatherInfo
 
@@ -446,7 +451,11 @@ class TestReminder(TestToolExecutor):
     async def test_list_reminders(self, tool_executor, mock_reminder_client):
         """リマインダー一覧を取得"""
         mock_reminder_client.list_reminders.return_value = [
-            {"id": "reminder-001", "message": "電話する", "datetime": "2026-01-25 10:00"},
+            {
+                "id": "reminder-001",
+                "message": "電話する",
+                "datetime": "2026-01-25 10:00",
+            },
         ]
 
         result = await tool_executor.execute(
@@ -488,7 +497,9 @@ class TestHomeAssistant(TestToolExecutor):
         assert result.is_error is False
 
     @pytest.mark.asyncio
-    async def test_get_room_environment(self, tool_executor, mock_home_assistant_client):
+    async def test_get_room_environment(
+        self, tool_executor, mock_home_assistant_client
+    ):
         """室内環境を取得"""
         mock_home_assistant_client.get_room_environment.return_value = {
             "temperature": 22.5,

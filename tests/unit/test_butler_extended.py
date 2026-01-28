@@ -383,9 +383,10 @@ class TestHandleMessage:
     ):
         """LangGraphモードでのメッセージ処理"""
         # Arrange
-        with patch("src.butler.Path.exists", return_value=False), patch(
-            "src.butler.run_butler_agent"
-        ) as mock_run_agent:
+        with (
+            patch("src.butler.Path.exists", return_value=False),
+            patch("src.butler.run_butler_agent") as mock_run_agent,
+        ):
             mock_run_agent.return_value = "かしこまりました（LangGraph）"
 
             butler = Butler(
@@ -414,9 +415,7 @@ class TestHandleMessage:
         """画像付きメッセージの処理"""
         # Arrange
         mock_claude_client.chat_with_tools.return_value = "この画像は..."
-        images = [
-            {"type": "base64", "media_type": "image/jpeg", "data": "base64data"}
-        ]
+        images = [{"type": "base64", "media_type": "image/jpeg", "data": "base64data"}]
 
         with patch("src.butler.Path.exists", return_value=False):
             butler = Butler(
@@ -481,13 +480,17 @@ location:
     - name: イオンモール高の原
       type: ショッピング
 """
-        with patch("src.butler.Path.exists", return_value=True), patch(
-            "builtins.open", MagicMock()
-        ), patch("yaml.safe_load") as mock_yaml:
+        with (
+            patch("src.butler.Path.exists", return_value=True),
+            patch("builtins.open", MagicMock()),
+            patch("yaml.safe_load") as mock_yaml,
+        ):
             mock_yaml.return_value = {
                 "garbage": {"schedule": [{"type": "燃えるごみ", "days": "月・木"}]},
                 "location": {
-                    "favorite_places": [{"name": "イオンモール", "type": "ショッピング"}]
+                    "favorite_places": [
+                        {"name": "イオンモール", "type": "ショッピング"}
+                    ]
                 },
             }
 
@@ -536,7 +539,7 @@ class TestStateManagement:
         """状態ファイルがない場合"""
         # tmp_pathを使用して一時的なディレクトリに状態を保存
         mock_settings.log_dir = tmp_path
-        
+
         with patch("src.butler.Path.exists", return_value=False):
             butler = Butler(
                 settings=mock_settings,
@@ -544,7 +547,7 @@ class TestStateManagement:
                 claude_client=mock_claude_client,
                 discord_client=mock_discord_client,
             )
-        
+
         # tmp_pathを使っているので、存在しないファイルは空の辞書を返す
         state = butler._load_state()
         assert state == {}

@@ -313,9 +313,7 @@ class ClaudeClient:
                 try:
                     events = json.loads(json_str)
                 except json.JSONDecodeError as je:
-                    logger.error(
-                        f"JSON parse error: {je}, json_str={json_str[:200]}"
-                    )
+                    logger.error(f"JSON parse error: {je}, json_str={json_str[:200]}")
                     events = []
             else:
                 logger.warning(

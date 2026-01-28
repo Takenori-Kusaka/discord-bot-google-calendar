@@ -52,7 +52,11 @@ HOUSEWORK_CATEGORIES = [
 
 # デフォルトの家事タスク
 DEFAULT_TASKS = [
-    {"name": "エアコンフィルター掃除", "category": "家電メンテナンス", "interval_days": 90},
+    {
+        "name": "エアコンフィルター掃除",
+        "category": "家電メンテナンス",
+        "interval_days": 90,
+    },
     {"name": "換気扇掃除", "category": "掃除", "interval_days": 180},
     {"name": "浴室カビ取り", "category": "掃除", "interval_days": 30},
     {"name": "トイレ掃除", "category": "掃除", "interval_days": 7},

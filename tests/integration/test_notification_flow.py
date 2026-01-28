@@ -119,7 +119,9 @@ class TestMorningNotificationFlow:
 
         # 今日は何の日
         today_info = MagicMock()
-        today_info.format_for_notification.return_value = "今日は「郵便制度施行記念日」です"
+        today_info.format_for_notification.return_value = (
+            "今日は「郵便制度施行記念日」です"
+        )
 
         # モックの設定
         mock_calendar_client.get_today_events.return_value = sample_events
