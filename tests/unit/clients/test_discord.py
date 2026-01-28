@@ -126,20 +126,14 @@ class TestSendToChannel(TestDiscordClient):
 
     @pytest.mark.asyncio
     async def test_send_to_channel_success(self, discord_client, mock_bot, mock_guild):
-        """メッセージ送信成功
-        
-        Note: 現在の実装ではsend_to_channelはチャンネル検索後に
-        送信処理を行っていないため、結果はNoneになる。
-        この挙動が修正された場合はテストも更新が必要。
-        """
+        """メッセージ送信成功"""
         mock_bot.get_guild.return_value = mock_guild
         schedule_channel = mock_guild.text_channels[0]
 
         result = await discord_client.send_to_channel("予定", "テストメッセージ")
 
-        # 現在の実装ではNoneが返る（実装がincomplete）
-        # 修正されればTrueになるはず
-        assert result is None or result is True
+        assert result is True
+        schedule_channel.send.assert_called_once_with("テストメッセージ")
 
     @pytest.mark.asyncio
     async def test_send_to_channel_no_channel(self, discord_client, mock_bot):
@@ -154,11 +148,7 @@ class TestSendToChannel(TestDiscordClient):
     async def test_send_to_channel_send_error(
         self, discord_client, mock_bot, mock_guild
     ):
-        """送信エラーの場合
-        
-        Note: 現在の実装では送信処理自体が実装されていないため、
-        エラーが発生しない。実装が完成した場合はテストを更新。
-        """
+        """送信エラーの場合"""
         mock_bot.get_guild.return_value = mock_guild
         schedule_channel = mock_guild.text_channels[0]
         schedule_channel.send.side_effect = discord.HTTPException(
@@ -167,8 +157,8 @@ class TestSendToChannel(TestDiscordClient):
 
         result = await discord_client.send_to_channel("予定", "テストメッセージ")
 
-        # 現在はNoneが返る（実装がincomplete）
-        assert result is None or result is False
+        assert result is False
+        schedule_channel.send.assert_called_once_with("テストメッセージ")
 
 
 class TestSendDmToOwner(TestDiscordClient):

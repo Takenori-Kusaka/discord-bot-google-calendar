@@ -228,6 +228,22 @@ class DiscordClient:
         if not channel:
             return False
 
+        try:
+            await channel.send(message)
+            logger.info(
+                "Message sent to channel",
+                channel=channel_name,
+                length=len(message),
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                "Failed to send message",
+                channel=channel_name,
+                error=str(e),
+            )
+            return False
+
     async def is_duplicate_message(
         self, channel_name: str, message: str, limit: int = 3
     ) -> bool:
@@ -253,22 +269,6 @@ class DiscordClient:
             logger.warning("Failed to check channel history", error=str(e))
 
         return False
-
-        try:
-            await channel.send(message)
-            logger.info(
-                "Message sent to channel",
-                channel=channel_name,
-                length=len(message),
-            )
-            return True
-        except Exception as e:
-            logger.error(
-                "Failed to send message",
-                channel=channel_name,
-                error=str(e),
-            )
-            return False
 
     async def send_dm_to_owner(self, message: str) -> bool:
         """オーナーにDMを送信（エラー通知用）

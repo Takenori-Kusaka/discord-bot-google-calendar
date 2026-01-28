@@ -142,8 +142,9 @@ class TestGenerateButlerMessage(TestClaudeClient):
             butler_name="黒田",
         )
 
-        assert "旦那様" in result
-        assert "黒田" in result
+        # モックで設定した値がそのまま返ることを検証
+        assert result == expected_message
+        mock_anthropic_client.messages.create.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_butler_message_no_events(self, claude_client):
@@ -153,7 +154,10 @@ class TestGenerateButlerMessage(TestClaudeClient):
             butler_name="黒田",
         )
 
-        assert "予定は特にございません" in result or "ございません" in result
+        # ハードコードされたフォールバックメッセージを検証
+        assert "旦那様、おはようございます" in result
+        assert "執事の黒田でございます" in result
+        assert "本日のご予定は特にございません" in result
 
     @pytest.mark.asyncio
     async def test_generate_butler_message_api_error(
@@ -265,7 +269,9 @@ class TestGenerateEventRecommendation(TestClaudeClient):
             butler_name="黒田",
         )
 
-        assert "旦那様" in result or "黒田" in result
+        # モックで設定した値がそのまま返ることを検証
+        assert result == expected
+        mock_anthropic_client.messages.create.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_recommendation_no_events(self, claude_client):
@@ -275,7 +281,10 @@ class TestGenerateEventRecommendation(TestClaudeClient):
             butler_name="黒田",
         )
 
-        assert "見つかりませんでした" in result or "ございません" in result
+        # ハードコードされたフォールバックメッセージを検証
+        assert "旦那様、奥様、執事の黒田でございます" in result
+        assert "見つかりませんでした" in result
+        assert "また来週" in result
 
     @pytest.mark.asyncio
     async def test_generate_recommendation_api_error(
