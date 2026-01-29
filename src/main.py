@@ -19,6 +19,7 @@ from .clients.expense import ExpenseClient
 from .clients.health import HealthClient
 from .clients.home_assistant import HomeAssistantClient
 from .clients.housework import HouseworkClient
+from .clients.maps import GoogleMapsClient
 from .clients.school import SchoolClient
 from .clients.life_info import LifeInfoClient
 from .clients.reminder import ReminderClient
@@ -140,6 +141,18 @@ async def main():
     health_client = HealthClient()
     logger.info("Health client initialized")
 
+    # Google Mapsクライアント初期化（APIキーが設定されている場合のみ）
+    maps_client = None
+    if settings.google_maps_api_key:
+        maps_client = GoogleMapsClient(
+            api_key=settings.google_maps_api_key,
+            home_address=settings.home_address,
+            timezone=settings.timezone,
+        )
+        logger.info("Google Maps client initialized")
+    else:
+        logger.info("Google Maps client not configured (missing API key)")
+
     # Butler初期化
     butler = Butler(
         settings=settings,
@@ -158,6 +171,7 @@ async def main():
         expense_client=expense_client,
         school_client=school_client,
         health_client=health_client,
+        maps_client=maps_client,
         use_langgraph=settings.use_langgraph,
     )
 

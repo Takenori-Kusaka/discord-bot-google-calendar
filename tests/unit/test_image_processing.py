@@ -35,20 +35,29 @@ class TestMultimodalMessageConstruction:
     """マルチモーダルメッセージ構築のテスト"""
 
     def test_image_content_structure(self):
-        """画像コンテンツの構造が正しいこと"""
-        # 期待される画像コンテンツ構造
+        """画像コンテンツの構造が正しいこと（Anthropicネイティブ形式）"""
+        # 期待される画像コンテンツ構造（Anthropicネイティブ形式）
         image_data = {
             "type": "base64",
             "media_type": "image/jpeg",
             "data": "base64encodedimagedata",
         }
 
-        # LangChain形式の画像URLフォーマット
-        expected_url = f"data:{image_data['media_type']};base64,{image_data['data']}"
-        assert expected_url == "data:image/jpeg;base64,base64encodedimagedata"
+        # Anthropicネイティブ形式の画像構造
+        expected_content = {
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": image_data["media_type"],
+                "data": image_data["data"],
+            },
+        }
+        assert expected_content["type"] == "image"
+        assert expected_content["source"]["type"] == "base64"
+        assert expected_content["source"]["media_type"] == "image/jpeg"
 
     def test_multimodal_message_with_text_and_image(self):
-        """テキストと画像を含むマルチモーダルメッセージの構築"""
+        """テキストと画像を含むマルチモーダルメッセージの構築（Anthropicネイティブ形式）"""
         message = "この画像について教えて"
         images = [
             {
@@ -58,7 +67,7 @@ class TestMultimodalMessageConstruction:
             }
         ]
 
-        # メッセージコンテンツを構築
+        # メッセージコンテンツを構築（Anthropicネイティブ形式）
         content = []
         if message:
             content.append({"type": "text", "text": message})
@@ -66,9 +75,11 @@ class TestMultimodalMessageConstruction:
         for img in images:
             content.append(
                 {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{img['media_type']};base64,{img['data']}"
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": img["media_type"],
+                        "data": img["data"],
                     },
                 }
             )
@@ -77,11 +88,11 @@ class TestMultimodalMessageConstruction:
         assert len(content) == 2
         assert content[0]["type"] == "text"
         assert content[0]["text"] == message
-        assert content[1]["type"] == "image_url"
-        assert "image/png" in content[1]["image_url"]["url"]
+        assert content[1]["type"] == "image"
+        assert content[1]["source"]["media_type"] == "image/png"
 
     def test_multimodal_message_image_only(self):
-        """画像のみのメッセージ（テキストなし）"""
+        """画像のみのメッセージ（テキストなし、Anthropicネイティブ形式）"""
         message = ""
         images = [
             {
@@ -98,9 +109,11 @@ class TestMultimodalMessageConstruction:
         for img in images:
             content.append(
                 {
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{img['media_type']};base64,{img['data']}"
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": img["media_type"],
+                        "data": img["data"],
                     },
                 }
             )
@@ -119,7 +132,7 @@ class TestMultimodalMessageConstruction:
         assert (
             len(content) == 2
         )  # 画像 + ヒント（テキストなしなので元のテキストはない）
-        assert content[0]["type"] == "image_url"
+        assert content[0]["type"] == "image"
         assert content[1]["type"] == "text"
         assert "イベント" in content[1]["text"]
 
@@ -182,10 +195,10 @@ class TestRunButlerAgentWithImages:
                 assert isinstance(human_msg, HumanMessage)
                 # コンテンツがリストであること（マルチモーダル）
                 assert isinstance(human_msg.content, list)
-                # テキストと画像が含まれていること
+                # テキストと画像が含まれていること（Anthropicネイティブ形式）
                 content_types = [c.get("type") for c in human_msg.content]
                 assert "text" in content_types
-                assert "image_url" in content_types
+                assert "image" in content_types  # Anthropicネイティブ形式
 
     @pytest.mark.asyncio
     async def test_image_only_adds_event_extraction_hint(self, mock_tool_executor):
@@ -322,11 +335,11 @@ class TestRunButlerAgentWithImages:
 
             assert result is not None
 
-            # 2つの画像が含まれていること
+            # 2つの画像が含まれていること（Anthropicネイティブ形式: type="image"）
             if captured_messages:
                 human_msg = captured_messages[0]
                 image_contents = [
-                    c for c in human_msg.content if c.get("type") == "image_url"
+                    c for c in human_msg.content if c.get("type") == "image"
                 ]
                 assert len(image_contents) == 2
 

@@ -61,6 +61,15 @@ class Settings(BaseSettings):
         default=None, description="Perplexity APIキー"
     )
 
+    # Google Maps設定
+    google_maps_api_key: Optional[str] = Field(
+        default=None, description="Google Maps APIキー（Directions API用）"
+    )
+    home_address: str = Field(
+        default="京都府木津川市梅美台6丁目1-15",
+        description="自宅住所（移動時間計算の出発地）",
+    )
+
     # ログ設定
     log_level: str = Field(default="INFO", description="ログレベル")
     log_dir: Optional[Path] = Field(

@@ -782,6 +782,31 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+    # 移動時間ツール
+    {
+        "name": "get_travel_info",
+        "description": "自宅から目的地までの移動時間・距離を取得します。車や公共交通機関での所要時間を確認できます。イベント会場への移動時間を調べるのに便利です。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "destination": {
+                    "type": "string",
+                    "description": "目的地（住所または施設名、例: 木津川市中央体育館、奈良市大宮町）",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["driving", "transit", "walking", "bicycling"],
+                    "description": "移動手段（driving=車、transit=公共交通機関、walking=徒歩、bicycling=自転車）",
+                    "default": "driving",
+                },
+                "origin": {
+                    "type": "string",
+                    "description": "出発地（省略時は自宅）",
+                },
+            },
+            "required": ["destination"],
+        },
+    },
 ]
 
 
@@ -812,6 +837,7 @@ class ToolExecutor:
         expense_client=None,
         school_client=None,
         health_client=None,
+        maps_client=None,
         family_data: Optional[dict] = None,
         timezone: str = "Asia/Tokyo",
     ):
@@ -831,6 +857,7 @@ class ToolExecutor:
             expense_client: 家計簿クライアント
             school_client: 学校情報クライアント
             health_client: 健康記録クライアント
+            maps_client: Google Mapsクライアント
             family_data: 家族情報
             timezone: タイムゾーン
         """
@@ -847,6 +874,7 @@ class ToolExecutor:
         self.expense_client = expense_client
         self.school_client = school_client
         self.health_client = health_client
+        self.maps_client = maps_client
         self.family_data = family_data or {}
         self.timezone = timezone
 
@@ -889,6 +917,8 @@ class ToolExecutor:
             "record_hospital_visit": self._record_hospital_visit,
             "get_health_info": self._get_health_info,
             "get_health_records": self._get_health_records,
+            # 移動時間
+            "get_travel_info": self._get_travel_info,
         }
 
         logger.info("Tool executor initialized")
@@ -1133,6 +1163,32 @@ class ToolExecutor:
                 else:
                     end = None
 
+            # 場所が指定されている場合、移動時間を自動取得
+            travel_info_text = ""
+            if location and self.maps_client:
+                try:
+                    from ..clients.maps import TravelMode
+                    
+                    travel_info = await self.maps_client.get_travel_info(
+                        destination=location,
+                        mode=TravelMode.DRIVING,
+                    )
+                    if travel_info:
+                        travel_info_text = (
+                            f"\n\n【自宅からの移動情報】\n"
+                            f"🚗 車: {travel_info.duration_text}（{travel_info.distance_text}）"
+                        )
+                        if travel_info.summary:
+                            travel_info_text += f"\n🛣️ ルート: {travel_info.summary}"
+                        
+                        # 説明に移動情報を追加
+                        if description:
+                            description = f"{description}\n{travel_info.format_for_description()}"
+                        else:
+                            description = travel_info.format_for_description()
+                except Exception as e:
+                    logger.warning("Failed to get travel info for event", error=str(e))
+
             # イベント作成
             event = await self.calendar_client.create_event(
                 summary=summary,
@@ -1154,8 +1210,11 @@ class ToolExecutor:
             result = f"予定を登録しました。\n\n【登録内容】\n- タイトル: {summary}\n- 日時: {time_info}"
             if location:
                 result += f"\n- 場所: {location}"
-            if description:
-                result += f"\n- 説明: {description}"
+            if tool_input.get("description"):  # 元の説明のみ表示
+                result += f"\n- 説明: {tool_input.get('description')}"
+            
+            # 移動情報を結果に追加
+            result += travel_info_text
 
             return result
 
@@ -2080,6 +2139,64 @@ class ToolExecutor:
         except Exception as e:
             logger.error("Failed to get health records", error=str(e))
             return f"健康記録の取得に失敗しました: {str(e)}"
+
+    async def _get_travel_info(self, tool_input: dict) -> str:
+        """移動時間・距離を取得"""
+        if not self.maps_client:
+            return "Google Mapsクライアントが設定されていません。"
+
+        destination = tool_input.get("destination")
+        if not destination:
+            return "目的地を指定してください。"
+
+        mode_str = tool_input.get("mode", "driving")
+        origin = tool_input.get("origin")
+
+        # モード文字列をTravelModeに変換
+        from ..clients.maps import TravelMode
+
+        mode_map = {
+            "driving": TravelMode.DRIVING,
+            "transit": TravelMode.TRANSIT,
+            "walking": TravelMode.WALKING,
+            "bicycling": TravelMode.BICYCLING,
+        }
+        mode = mode_map.get(mode_str, TravelMode.DRIVING)
+
+        try:
+            # 移動情報を取得
+            travel_info = await self.maps_client.get_travel_info(
+                destination=destination,
+                origin=origin,
+                mode=mode,
+            )
+
+            if not travel_info:
+                return f"「{destination}」への移動情報を取得できませんでした。住所や施設名を確認してください。"
+
+            # フォーマット
+            lines = [
+                f"【{destination}への移動情報】",
+                f"出発地: {travel_info.origin}",
+                f"目的地: {travel_info.destination}",
+                f"",
+                f"🚗 移動時間: {travel_info.duration_text}",
+                f"📏 距離: {travel_info.distance_text}",
+            ]
+
+            if travel_info.summary:
+                lines.append(f"🛣️ ルート: {travel_info.summary}")
+
+            # 複数モードでの比較を提案
+            if mode == TravelMode.DRIVING:
+                lines.append("")
+                lines.append("※公共交通機関での所要時間を知りたい場合は mode=transit で再度お問い合わせください。")
+
+            return "\n".join(lines)
+
+        except Exception as e:
+            logger.error("Failed to get travel info", error=str(e))
+            return f"移動情報の取得に失敗しました: {str(e)}"
 
 
 def get_tool_definitions() -> list[dict]:

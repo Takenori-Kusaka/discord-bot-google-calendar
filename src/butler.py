@@ -24,6 +24,7 @@ from .clients.health import HealthClient
 from .clients.home_assistant import HomeAssistantClient
 from .clients.housework import HouseworkClient
 from .clients.life_info import LifeInfoClient
+from .clients.maps import GoogleMapsClient
 from .clients.reminder import ReminderClient
 from .clients.school import SchoolClient
 from .clients.shopping_list import ShoppingListClient
@@ -60,6 +61,7 @@ class Butler:
         expense_client: Optional[ExpenseClient] = None,
         school_client: Optional[SchoolClient] = None,
         health_client: Optional[HealthClient] = None,
+        maps_client: Optional[GoogleMapsClient] = None,
         use_langgraph: bool = False,
     ):
         """初期化
@@ -81,6 +83,7 @@ class Butler:
             expense_client: 家計簿クライアント（オプション）
             school_client: 学校情報クライアント（オプション）
             health_client: 健康記録クライアント（オプション）
+            maps_client: Google Mapsクライアント（オプション）
             use_langgraph: LangGraphエージェントを使用するかどうか
         """
         self.settings = settings
@@ -99,6 +102,7 @@ class Butler:
         self.expense = expense_client
         self.school = school_client
         self.health = health_client
+        self.maps = maps_client
         self.name = settings.butler_name
         self.use_langgraph = use_langgraph
 
@@ -127,6 +131,7 @@ class Butler:
             expense_client=expense_client,
             school_client=school_client,
             health_client=health_client,
+            maps_client=maps_client,
             family_data=self.family_data,
             timezone=settings.timezone,
         )
