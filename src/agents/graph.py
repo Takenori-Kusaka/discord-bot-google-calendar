@@ -1071,7 +1071,7 @@ async def run_butler_agent(
             user_text = message
         else:
             user_text = ""
-        
+
         # 画像分析の指示を追加（イベント情報なら自動登録を促す）
         instruction = """この画像を分析してください。
 イベント・予定・チラシ・案内等の場合は、create_calendar_eventツールで即座にカレンダーに登録してください。
@@ -1087,7 +1087,7 @@ async def run_butler_agent(
 6. 問い合わせ先（電話番号・SNSなど）
 
 画像から読み取れる情報を漏れなく伝えてください。"""
-        
+
         if user_text:
             content.append({"type": "text", "text": f"{user_text}\n\n{instruction}"})
         else:

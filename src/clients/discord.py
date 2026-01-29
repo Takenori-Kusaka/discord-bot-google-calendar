@@ -59,29 +59,31 @@ class DiscordClient:
         self._message_handler = handler
         logger.info("Message handler registered")
 
-    def _resize_image_for_api(self, image_data: bytes, max_size_bytes: int = 4_500_000) -> bytes:
+    def _resize_image_for_api(
+        self, image_data: bytes, max_size_bytes: int = 4_500_000
+    ) -> bytes:
         """画像をAPI制限内にリサイズする
-        
+
         Anthropic APIの制限は5MB。安全マージンを取って4.5MBを上限とする。
-        
+
         Args:
             image_data: 元の画像データ
             max_size_bytes: 最大サイズ（バイト）
-            
+
         Returns:
             bytes: リサイズ後の画像データ
         """
         # 既にサイズが小さければそのまま返す
         if len(image_data) <= max_size_bytes:
             return image_data
-            
+
         logger.info(f"Image size {len(image_data)} bytes exceeds limit, resizing...")
-        
+
         try:
             # 画像を開く
             img = Image.open(io.BytesIO(image_data))
             original_format = img.format or "PNG"
-            
+
             # RGBAの場合はRGBに変換（JPEG保存用）
             if img.mode == "RGBA":
                 # 白背景でアルファチャンネルを合成
@@ -90,11 +92,11 @@ class DiscordClient:
                 img = background
             elif img.mode != "RGB":
                 img = img.convert("RGB")
-            
+
             # 縮小率を計算して段階的にリサイズ
             quality = 85
             scale = 1.0
-            
+
             while True:
                 # リサイズ
                 if scale < 1.0:
@@ -102,17 +104,19 @@ class DiscordClient:
                     resized = img.resize(new_size, Image.Resampling.LANCZOS)
                 else:
                     resized = img
-                
+
                 # JPEG形式で保存
                 output = io.BytesIO()
                 resized.save(output, format="JPEG", quality=quality, optimize=True)
                 result = output.getvalue()
-                
-                logger.info(f"Resized image: scale={scale:.2f}, quality={quality}, size={len(result)} bytes")
-                
+
+                logger.info(
+                    f"Resized image: scale={scale:.2f}, quality={quality}, size={len(result)} bytes"
+                )
+
                 if len(result) <= max_size_bytes:
                     return result
-                
+
                 # 次の試行：まず品質を下げ、それでもダメならスケールを下げる
                 if quality > 60:
                     quality -= 10
@@ -121,14 +125,18 @@ class DiscordClient:
                     quality = 85  # スケールを下げたら品質をリセット
                 else:
                     # これ以上縮小できない場合はそのまま返す
-                    logger.warning(f"Could not reduce image below limit, returning {len(result)} bytes")
+                    logger.warning(
+                        f"Could not reduce image below limit, returning {len(result)} bytes"
+                    )
                     return result
-                    
+
         except Exception as e:
             logger.error(f"Error resizing image: {e}")
             return image_data
 
-    async def _download_image_as_base64(self, url: str) -> tuple[str | None, str | None]:
+    async def _download_image_as_base64(
+        self, url: str
+    ) -> tuple[str | None, str | None]:
         """画像をダウンロードしてbase64エンコードする
 
         Args:
@@ -145,21 +153,25 @@ class DiscordClient:
                     if response.status == 200:
                         data = await response.read()
                         original_size = len(data)
-                        
+
                         # APIサイズ制限チェック・リサイズ
                         resized_data = self._resize_image_for_api(data)
-                        
+
                         # リサイズした場合はメディアタイプをJPEGに変更
                         if len(resized_data) != original_size:
                             media_type = "image/jpeg"
                         else:
                             media_type = None  # 呼び出し元で決定
-                        
+
                         base64_data = base64.b64encode(resized_data).decode("utf-8")
-                        logger.info(f"Image processed: original={original_size}, final={len(resized_data)}, base64={len(base64_data)}")
+                        logger.info(
+                            f"Image processed: original={original_size}, final={len(resized_data)}, base64={len(base64_data)}"
+                        )
                         return base64_data, media_type
                     else:
-                        logger.warning(f"Failed to download image: status={response.status}, url={url}")
+                        logger.warning(
+                            f"Failed to download image: status={response.status}, url={url}"
+                        )
                         return None, None
         except Exception as e:
             logger.error(f"Error downloading image: {e}, url={url}")
@@ -210,11 +222,13 @@ class DiscordClient:
                 images = []
                 image_extensions = (".png", ".jpg", ".jpeg", ".gif", ".webp")
                 for attachment in message.attachments:
-                    logger.info(f"Checking attachment: filename={attachment.filename}, url={attachment.url}, content_type={attachment.content_type}")
+                    logger.info(
+                        f"Checking attachment: filename={attachment.filename}, url={attachment.url}, content_type={attachment.content_type}"
+                    )
                     if attachment.filename.lower().endswith(image_extensions):
                         logger.info(f"Downloading image: {attachment.filename}")
-                        image_data, resized_media_type = await self._download_image_as_base64(
-                            attachment.url
+                        image_data, resized_media_type = (
+                            await self._download_image_as_base64(attachment.url)
                         )
                         if image_data:
                             # リサイズした場合はJPEG、そうでなければ拡張子から判定
@@ -236,9 +250,13 @@ class DiscordClient:
                                 f"Image attachment processed: {attachment.filename}, media_type={media_type}"
                             )
                         else:
-                            logger.warning(f"Failed to download image: {attachment.filename}")
+                            logger.warning(
+                                f"Failed to download image: {attachment.filename}"
+                            )
                     else:
-                        logger.info(f"Skipping non-image attachment: {attachment.filename}")
+                        logger.info(
+                            f"Skipping non-image attachment: {attachment.filename}"
+                        )
 
                 logger.info(f"Total images processed: {len(images)}")
 

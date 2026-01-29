@@ -352,8 +352,12 @@ async def main():
 
             print(f"[{processed}/{len(dates)}] Processing {key}...")
             entries = await process_date(
-                session, google_api_key, google_engine_id,
-                claude_client, month, day,
+                session,
+                google_api_key,
+                google_engine_id,
+                claude_client,
+                month,
+                day,
             )
 
             if entries:

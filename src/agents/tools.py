@@ -1168,7 +1168,7 @@ class ToolExecutor:
             if location and self.maps_client:
                 try:
                     from ..clients.maps import TravelMode
-                    
+
                     travel_info = await self.maps_client.get_travel_info(
                         destination=location,
                         mode=TravelMode.DRIVING,
@@ -1180,10 +1180,12 @@ class ToolExecutor:
                         )
                         if travel_info.summary:
                             travel_info_text += f"\n🛣️ ルート: {travel_info.summary}"
-                        
+
                         # 説明に移動情報を追加
                         if description:
-                            description = f"{description}\n{travel_info.format_for_description()}"
+                            description = (
+                                f"{description}\n{travel_info.format_for_description()}"
+                            )
                         else:
                             description = travel_info.format_for_description()
                 except Exception as e:
@@ -1212,7 +1214,7 @@ class ToolExecutor:
                 result += f"\n- 場所: {location}"
             if tool_input.get("description"):  # 元の説明のみ表示
                 result += f"\n- 説明: {tool_input.get('description')}"
-            
+
             # 移動情報を結果に追加
             result += travel_info_text
 
@@ -2190,7 +2192,9 @@ class ToolExecutor:
             # 複数モードでの比較を提案
             if mode == TravelMode.DRIVING:
                 lines.append("")
-                lines.append("※公共交通機関での所要時間を知りたい場合は mode=transit で再度お問い合わせください。")
+                lines.append(
+                    "※公共交通機関での所要時間を知りたい場合は mode=transit で再度お問い合わせください。"
+                )
 
             return "\n".join(lines)
 
