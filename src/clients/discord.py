@@ -198,11 +198,14 @@ class DiscordClient:
             if message.guild and message.guild.id != self.guild_id:
                 return
 
-            # Botへのメンションまたは「黒田」を含むメッセージに反応
+            # Botへのメンション（ユーザーまたはロール）、または「黒田」を含むメッセージに反応
             bot_mentioned = self.bot.user in message.mentions
+            bot_role_mentioned = any(
+                role.name == "黒田" for role in message.role_mentions
+            )
             butler_called = "黒田" in message.content
 
-            if not (bot_mentioned or butler_called):
+            if not (bot_mentioned or bot_role_mentioned or butler_called):
                 return
 
             # メッセージハンドラが設定されていない場合
@@ -215,6 +218,9 @@ class DiscordClient:
                 content = message.content
                 if self.bot.user:
                     content = content.replace(f"<@{self.bot.user.id}>", "").strip()
+                # ロールメンションも除去
+                for role in message.role_mentions:
+                    content = content.replace(f"<@&{role.id}>", "").strip()
                 content = content.replace("黒田", "").strip()
 
                 # 画像添付をチェック
