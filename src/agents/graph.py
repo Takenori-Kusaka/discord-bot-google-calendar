@@ -817,7 +817,7 @@ def validation_node(state: AgentState) -> dict:
     """バリデーションノード: 出力品質を検証
 
     最終応答が執事口調になっているかチェックします。
-    問題があればerrorを設定してリトライを促します。
+    問題があればHumanMessageを追加してリトライを促します。
     """
     config = get_config()
     logger.info("Validation node processing")
@@ -853,8 +853,18 @@ def validation_node(state: AgentState) -> dict:
 
     if not has_butler_tone and current_retry < config.max_retries:
         logger.info("Response lacks butler tone, requesting retry")
+        # リトライ理由をメッセージ履歴に追加し、Claudeが認識できるようにする
+        feedback = HumanMessage(
+            content=(
+                "【口調修正依頼】先ほどの応答内容はそのままに、執事口調に修正してください。"
+                "「〜でございます」「〜くださいませ」「〜いたします」などの丁寧な表現を使い、"
+                "執事「黒田」としてふさわしい口調で応答し直してください。"
+                "内容を省略せず、情報量はそのまま維持してください。"
+            )
+        )
         return {
-            "error": "執事口調が不足しています。より丁寧な口調で応答してください。",
+            "messages": [feedback],
+            "error": "執事口調が不足しています。",
             "retry_count": current_retry + 1,
         }
 

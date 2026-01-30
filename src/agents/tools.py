@@ -1029,19 +1029,33 @@ class ToolExecutor:
         if not search_results:
             return "イベント情報を取得できませんでした。"
 
-        # クエリでフィルタリング（簡易実装）
+        # クエリでフィルタリング（各キーワードのAND検索）
         if query:
-            filtered = [r for r in search_results if query in str(r)]
+            keywords = query.split()
+            filtered = []
+            for r in search_results:
+                searchable = (
+                    f"{r.get('title', '')} {r.get('snippet', '')} "
+                    f"{r.get('source', '')}".lower()
+                )
+                if all(kw.lower() in searchable for kw in keywords):
+                    filtered.append(r)
             if filtered:
                 search_results = filtered
 
-        lines = ["【地域イベント情報】"]
-        for result in search_results[:5]:  # 最大5件
-            lines.append(f"- {result.get('title', '不明')}")
-            if result.get("date"):
-                lines.append(f"  日時: {result.get('date')}")
-            if result.get("location"):
-                lines.append(f"  場所: {result.get('location')}")
+        lines = [f"【地域イベント情報】（{len(search_results)}件中最大15件表示）"]
+        for result in search_results[:15]:
+            title = result.get("title", "不明")
+            snippet = result.get("snippet", "")
+            source = result.get("source", "")
+            link = result.get("link", "")
+            lines.append(f"\n- {title}")
+            if snippet:
+                lines.append(f"  詳細: {snippet}")
+            if source:
+                lines.append(f"  出典: {source}")
+            if link:
+                lines.append(f"  URL: {link}")
 
         return "\n".join(lines)
 
