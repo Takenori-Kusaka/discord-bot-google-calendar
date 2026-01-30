@@ -9,10 +9,10 @@ sources:
     priority: 1
     dynamic: false
     selectors:
-      container: "article, .event-item, .event-list li"
-      title: "h2, h3, .event-title, .title"
-      date: ".date, .event-date, time"
-      description: ".description, .summary, p"
+      container: "article.event-article"
+      title: "h4.event-title, h2, h3"
+      date: "header"
+      description: ".event-desc p"
       link: "a"
 
   # 高の原イオン（動的: Vue.js）
