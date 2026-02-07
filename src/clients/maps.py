@@ -126,9 +126,7 @@ class GoogleMapsClient:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    self.DIRECTIONS_URL, params=params
-                ) as response:
+                async with session.get(self.DIRECTIONS_URL, params=params) as response:
                     if response.status != 200:
                         logger.error(
                             "Google Maps API error",

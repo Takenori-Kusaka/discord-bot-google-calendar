@@ -317,7 +317,15 @@ class Butler:
         total_days = (end_date - start_date).days
         progress_pct = min(100, max(0, int(days_elapsed / total_days * 100)))
 
-        weekday_names = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
+        weekday_names = [
+            "月曜日",
+            "火曜日",
+            "水曜日",
+            "木曜日",
+            "金曜日",
+            "土曜日",
+            "日曜日",
+        ]
 
         return {
             "week_number": week_number,
@@ -345,7 +353,9 @@ class Butler:
                 if file_path.exists():
                     context[key] = file_path.read_text(encoding="utf-8")
             except Exception as e:
-                logger.warning(f"Failed to load coaching context: {path_str}", error=str(e))
+                logger.warning(
+                    f"Failed to load coaching context: {path_str}", error=str(e)
+                )
         return context
 
     def _parse_daily_report(self, text: str) -> dict[str, Any]:
@@ -389,7 +399,9 @@ class Butler:
 
         return data
 
-    def _save_daily_report(self, report_date: str, content: str, parsed: dict[str, Any] | None = None) -> None:
+    def _save_daily_report(
+        self, report_date: str, content: str, parsed: dict[str, Any] | None = None
+    ) -> None:
         """日報を butler_state.json に構造化保存"""
         state = self._load_state()
         coaching = state.setdefault("coaching", {})
@@ -400,7 +412,13 @@ class Butler:
             "reported_at": datetime.now(ZoneInfo(self.settings.timezone)).isoformat(),
         }
         if parsed:
-            for key in ("sleep_hours", "condition", "alone_hours", "activities", "notes"):
+            for key in (
+                "sleep_hours",
+                "condition",
+                "alone_hours",
+                "activities",
+                "notes",
+            ):
                 if key in parsed:
                     entry[key] = parsed[key]
 
@@ -418,8 +436,10 @@ class Butler:
         state = self._load_state()
         reports = state.get("coaching", {}).get("daily_reports", {})
         cutoff = (
-            datetime.now(ZoneInfo(self.settings.timezone)) - timedelta(days=days)
-        ).date().isoformat()
+            (datetime.now(ZoneInfo(self.settings.timezone)) - timedelta(days=days))
+            .date()
+            .isoformat()
+        )
         return {k: v for k, v in reports.items() if k >= cutoff}
 
     def _format_reports_for_prompt(self, reports: dict[str, Any]) -> str:
@@ -462,7 +482,9 @@ class Butler:
             summary_parts.append(f"一人時間合計: {total:.1f}時間")
 
         if summary_parts:
-            lines.append(f"\n【直近{len(reports)}日間のトレンド】 {' / '.join(summary_parts)}")
+            lines.append(
+                f"\n【直近{len(reports)}日間のトレンド】 {' / '.join(summary_parts)}"
+            )
 
         return "\n".join(lines)
 
@@ -474,8 +496,12 @@ class Butler:
         today_events: str,
     ) -> str:
         """コーチング用プロンプトを構築"""
-        plan_text = coaching_context.get("childcare_plan", "（育休計画ファイルが見つかりません）")
-        profile_text = coaching_context.get("profile", "（プロファイルが見つかりません）")
+        plan_text = coaching_context.get(
+            "childcare_plan", "（育休計画ファイルが見つかりません）"
+        )
+        profile_text = coaching_context.get(
+            "profile", "（プロファイルが見つかりません）"
+        )
         weekly_log = coaching_context.get("weekly_log", "")
 
         return f"""あなたは日下家に仕える執事「{self.name}」であり、旦那様（日下武紀様）の
