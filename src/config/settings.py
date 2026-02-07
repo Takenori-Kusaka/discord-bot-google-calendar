@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     discord_channel_region: str = Field(
         default="地域のこと", description="地域情報チャンネル名"
     )
+    discord_channel_coaching: str = Field(
+        default="武紀コーチング", description="コーチングチャンネル名"
+    )
 
     # Google Calendar設定
     google_calendar_id: str = Field(..., description="GoogleカレンダーID")
@@ -49,6 +52,12 @@ class Settings(BaseSettings):
     weekly_event_day: str = Field(default="fri", description="週次イベント通知曜日")
     weekly_event_hour: int = Field(default=18, description="週次イベント通知時刻（時）")
     timezone: str = Field(default="Asia/Tokyo", description="タイムゾーン")
+    coaching_notification_hour: int = Field(
+        default=7, description="コーチング通知時刻（時）"
+    )
+    coaching_notification_minute: int = Field(
+        default=0, description="コーチング通知時刻（分）"
+    )
 
     # 検索API設定
     google_search_api_key: Optional[str] = Field(

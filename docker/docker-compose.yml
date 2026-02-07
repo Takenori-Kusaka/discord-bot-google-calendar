@@ -14,6 +14,10 @@ services:
       - ../config:/app/config:ro
       # Google認証情報
       - ../credentials:/app/credentials:ro
+      # 個人データ（コーチング用、読み取り専用）
+      - ../docs/personal/data:/app/docs/personal/data:ro
+      # 状態ファイル（日報データ保存用）
+      - ../butler_state.json:/app/butler_state.json
     environment:
       - TZ=Asia/Tokyo
     logging:

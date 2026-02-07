@@ -30,6 +30,9 @@ def setup_scheduler(
     life_info_job=None,
     life_info_day: str = "mon",
     life_info_hour: int = 9,
+    coaching_job=None,
+    coaching_hour: int = 7,
+    coaching_minute: int = 0,
     timezone: str = "Asia/Tokyo",
     scheduler: AsyncIOScheduler | None = None,
 ) -> AsyncIOScheduler:
@@ -119,6 +122,28 @@ def setup_scheduler(
             "Weekly life info job scheduled",
             day=life_info_day,
             hour=life_info_hour,
+        )
+
+    # デイリーコーチング通知（毎日）
+    if coaching_job:
+        scheduler.add_job(
+            coaching_job,
+            CronTrigger(
+                hour=coaching_hour,
+                minute=coaching_minute,
+                timezone=timezone,
+            ),
+            id="daily_coaching",
+            name="デイリーコーチング通知",
+            replace_existing=True,
+            misfire_grace_time=300,
+            coalesce=True,
+            max_instances=1,
+        )
+        logger.info(
+            "Daily coaching job scheduled",
+            hour=coaching_hour,
+            minute=coaching_minute,
         )
 
     return scheduler

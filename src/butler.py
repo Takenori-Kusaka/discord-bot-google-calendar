@@ -6,7 +6,7 @@ LangGraphモードが有効な場合は、LangGraphベースのエージェン�
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
@@ -38,6 +38,11 @@ logger = get_logger(__name__)
 
 # 家族情報ファイルパス
 FAMILY_DATA_PATH = "docs/personal/data/family.yml"
+
+# コーチング用ファイルパス
+CHILDCARE_PLAN_PATH = "docs/personal/data/childcare_leave_plan_2026.md"
+PROFILE_PATH = "docs/personal/data/profile.yml"
+CHILDCARE_WEEKLY_LOG_PATH = "docs/personal/data/childcare_leave_weekly_log.md"
 
 
 class Butler:
@@ -278,6 +283,439 @@ class Butler:
 
         return "\n".join(lines)
 
+    # =========================================================================
+    # コーチング機能
+    # =========================================================================
+
+    def _get_coaching_phase_info(self) -> dict[str, Any]:
+        """現在の育休フェーズ・週番号を算出"""
+        from datetime import date
+
+        start_date = date(2026, 1, 26)
+        end_date = date(2026, 9, 18)
+        now = datetime.now(ZoneInfo(self.settings.timezone))
+        today = now.date()
+
+        days_elapsed = (today - start_date).days
+        week_number = max(1, days_elapsed // 7 + 1)
+        total_weeks = 34
+
+        if week_number <= 10:
+            phase, phase_name = 1, "回復期"
+            phase_purpose = "体調を回復し、回復の3段階（睡眠→趣味→運動）を順番に進める"
+        elif week_number <= 18:
+            phase, phase_name = 2, "再構築期"
+            phase_purpose = "運動習慣を確立し、持続可能な家事育児体制を構築する"
+        elif week_number <= 27:
+            phase, phase_name = 3, "探索期"
+            phase_purpose = "社外との接点を増やし、キャリアの方向性を検討する"
+        else:
+            phase, phase_name = 4, "準備期"
+            phase_purpose = "復帰に向けた準備を整え、持続可能な働き方を設計する"
+
+        days_remaining = (end_date - today).days
+        total_days = (end_date - start_date).days
+        progress_pct = min(100, max(0, int(days_elapsed / total_days * 100)))
+
+        weekday_names = ["月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日", "日曜日"]
+
+        return {
+            "week_number": week_number,
+            "total_weeks": total_weeks,
+            "phase": phase,
+            "phase_name": phase_name,
+            "phase_purpose": phase_purpose,
+            "days_remaining": days_remaining,
+            "progress_pct": progress_pct,
+            "today": today.isoformat(),
+            "day_of_week": weekday_names[today.weekday()],
+        }
+
+    def _load_coaching_context(self) -> dict[str, str]:
+        """コーチング用コンテキストファイルを読み込み"""
+        context = {}
+        file_map = {
+            "childcare_plan": CHILDCARE_PLAN_PATH,
+            "profile": PROFILE_PATH,
+            "weekly_log": CHILDCARE_WEEKLY_LOG_PATH,
+        }
+        for key, path_str in file_map.items():
+            try:
+                file_path = Path(path_str)
+                if file_path.exists():
+                    context[key] = file_path.read_text(encoding="utf-8")
+            except Exception as e:
+                logger.warning(f"Failed to load coaching context: {path_str}", error=str(e))
+        return context
+
+    def _parse_daily_report(self, text: str) -> dict[str, Any]:
+        """日報テキストから構造化データを抽出
+
+        対応フォーマット:
+            睡眠: 8時間
+            体調: 7/10
+            一人時間: 2時間
+            やったこと: 読書、散歩
+            気づき: よく眠れた
+        """
+        import re
+
+        data: dict[str, Any] = {"raw": text}
+
+        # 睡眠時間
+        m = re.search(r"睡眠[:：]\s*([\d.]+)", text)
+        if m:
+            data["sleep_hours"] = float(m.group(1))
+
+        # 体調 (1-10)
+        m = re.search(r"体調[:：]\s*([\d.]+)", text)
+        if m:
+            data["condition"] = float(m.group(1))
+
+        # 一人時間
+        m = re.search(r"一人時間[:：]\s*([\d.]+)", text)
+        if m:
+            data["alone_hours"] = float(m.group(1))
+
+        # やったこと
+        m = re.search(r"やったこと[:：]\s*(.+?)(?:\n|気づき|$)", text, re.DOTALL)
+        if m:
+            data["activities"] = m.group(1).strip()
+
+        # 気づき
+        m = re.search(r"気づき[:：]\s*(.+)", text, re.DOTALL)
+        if m:
+            data["notes"] = m.group(1).strip()
+
+        return data
+
+    def _save_daily_report(self, report_date: str, content: str, parsed: dict[str, Any] | None = None) -> None:
+        """日報を butler_state.json に構造化保存"""
+        state = self._load_state()
+        coaching = state.setdefault("coaching", {})
+        reports = coaching.setdefault("daily_reports", {})
+
+        entry: dict[str, Any] = {
+            "content": content,
+            "reported_at": datetime.now(ZoneInfo(self.settings.timezone)).isoformat(),
+        }
+        if parsed:
+            for key in ("sleep_hours", "condition", "alone_hours", "activities", "notes"):
+                if key in parsed:
+                    entry[key] = parsed[key]
+
+        reports[report_date] = entry
+
+        # 直近30日分のみ保持
+        if len(reports) > 30:
+            for key in sorted(reports.keys())[:-30]:
+                del reports[key]
+
+        self._save_state(state)
+
+    def _get_recent_reports(self, days: int = 7) -> dict[str, Any]:
+        """直近の日報を取得"""
+        state = self._load_state()
+        reports = state.get("coaching", {}).get("daily_reports", {})
+        cutoff = (
+            datetime.now(ZoneInfo(self.settings.timezone)) - timedelta(days=days)
+        ).date().isoformat()
+        return {k: v for k, v in reports.items() if k >= cutoff}
+
+    def _format_reports_for_prompt(self, reports: dict[str, Any]) -> str:
+        """日報データをコーチングプロンプト用にフォーマット"""
+        if not reports:
+            return ""
+
+        lines = []
+        sleep_vals = []
+        condition_vals = []
+        alone_vals = []
+
+        for date_str, r in sorted(reports.items()):
+            parts = [f"- {date_str}:"]
+            if "sleep_hours" in r:
+                parts.append(f"睡眠{r['sleep_hours']}h")
+                sleep_vals.append(r["sleep_hours"])
+            if "condition" in r:
+                parts.append(f"体調{r['condition']}/10")
+                condition_vals.append(r["condition"])
+            if "alone_hours" in r:
+                parts.append(f"一人時間{r['alone_hours']}h")
+                alone_vals.append(r["alone_hours"])
+            if "activities" in r:
+                parts.append(r["activities"][:100])
+            elif "content" in r:
+                parts.append(r["content"][:100])
+            lines.append(" / ".join(parts))
+
+        # トレンドサマリー
+        summary_parts = []
+        if sleep_vals:
+            avg = sum(sleep_vals) / len(sleep_vals)
+            summary_parts.append(f"平均睡眠: {avg:.1f}時間")
+        if condition_vals:
+            avg = sum(condition_vals) / len(condition_vals)
+            summary_parts.append(f"平均体調: {avg:.1f}/10")
+        if alone_vals:
+            total = sum(alone_vals)
+            summary_parts.append(f"一人時間合計: {total:.1f}時間")
+
+        if summary_parts:
+            lines.append(f"\n【直近{len(reports)}日間のトレンド】 {' / '.join(summary_parts)}")
+
+        return "\n".join(lines)
+
+    def _build_coaching_prompt(
+        self,
+        phase_info: dict[str, Any],
+        coaching_context: dict[str, str],
+        recent_reports: str,
+        today_events: str,
+    ) -> str:
+        """コーチング用プロンプトを構築"""
+        plan_text = coaching_context.get("childcare_plan", "（育休計画ファイルが見つかりません）")
+        profile_text = coaching_context.get("profile", "（プロファイルが見つかりません）")
+        weekly_log = coaching_context.get("weekly_log", "")
+
+        return f"""あなたは日下家に仕える執事「{self.name}」であり、旦那様（日下武紀様）の
+育休期間中のパーソナルコーチでもあります。
+
+## あなたの役割
+- 育休計画に基づいた毎朝のコーチングメッセージを作成する
+- 執事らしい丁寧だが温かみのある口調で、押しつけがましくなく導く
+- 旦那様の体調回復を最優先に、無理をさせない
+- 「何もしない」ことも回復には必要だと理解している
+
+## 今日の情報
+- 日付: {phase_info['today']}（{phase_info['day_of_week']}）
+- 育休 Week {phase_info['week_number']} / {phase_info['total_weeks']}
+- Phase {phase_info['phase']}: {phase_info['phase_name']}
+- Phase目的: {phase_info['phase_purpose']}
+- 復帰まで残り {phase_info['days_remaining']} 日（進捗: {phase_info['progress_pct']}%）
+
+## 今日のカレンダー予定
+{today_events if today_events else "特にございません。"}
+
+## 旦那様の一日のスケジュール（育休中・短時間保育）
+- 05:40 起床
+- 06:04 ラジオ体操
+- 06:20 朝食
+- 08:15 お嬢様の保育園送り
+- 08:30〜16:00 自由時間（コーチングの主要対象）
+  ※坊ちゃま（0歳）のお世話は随時
+- 16:00 お迎え準備
+- 16:15 お嬢様お迎え
+- 17:00〜21:30 夕方〜夜ルーティン（固定スケジュール）
+- 21:30 就寝
+
+## 直近の日報
+{recent_reports if recent_reports else "まだ日報の提出はございません。"}
+
+## 育休計画（全文）
+{plan_text}
+
+## 旦那様のプロファイル
+{profile_text}
+
+## 週次振り返りログ
+{weekly_log if weekly_log else "まだ週次振り返りは記録されておりません。"}
+
+## メッセージ作成ルール
+1. 挨拶から始める（「旦那様、おはようございます。執事の{self.name}でございます。」）
+2. 現在のPhase/Week位置と、今週の主要タスクを簡潔に伝える
+3. 今日の自由時間（08:30-16:00）の過ごし方を提案する（無理のない範囲で）
+4. 現在のPhaseに応じた具体的なアクション提案（1-2個）
+5. 体調・回復に関するリマインダー（睡眠優先の場合は特に）
+6. 締めの言葉（温かく、プレッシャーを与えない）
+7. 絵文字は使用しない
+8. 400-600文字程度に収める
+9. 日報がある場合はその進捗を踏まえたコメントを含める
+10. カレンダーに予定がある場合は、自由時間への影響を考慮する
+11. メッセージの最後に、日報テンプレートを案内する（以下の形式で）:
+    「本日の振り返りは以下のテンプレートでお知らせくださいませ。」
+    @黒田【日報】
+    睡眠: ○時間
+    体調: ○/10
+    一人時間: ○時間
+    やったこと: 自由記述
+    気づき: 任意
+    ※全項目を埋める必要はなく、「やったこと」だけでも結構です
+
+## 重要な注意
+- 旦那様は3年連続で体調を崩しており、回復を最優先にすべき
+- 運転不可（精神疾患による意識消失のリスク）
+- 「何もしない」日があっても否定しない
+- 反復作業を嫌う認知特性を考慮する
+- 知的刺激への渇望を活用する
+"""
+
+    async def daily_coaching_notification(self) -> None:
+        """デイリーコーチング通知を実行"""
+        logger.info("Starting daily coaching notification")
+
+        try:
+            # 1. Phase/Week情報を取得
+            phase_info = self._get_coaching_phase_info()
+            logger.info(
+                "Coaching phase info",
+                week=phase_info["week_number"],
+                phase=phase_info["phase"],
+            )
+
+            # 育休期間外ならスキップ
+            if phase_info["days_remaining"] < 0 or phase_info["week_number"] < 1:
+                logger.info("Outside childcare leave period, skipping coaching")
+                return
+
+            # 2. コンテキストファイルを読み込み
+            coaching_context = self._load_coaching_context()
+
+            # 3. 直近の日報を取得
+            recent_reports = self._get_recent_reports(days=7)
+            reports_text = self._format_reports_for_prompt(recent_reports)
+
+            # 4. 今日のカレンダー予定を取得
+            today_events = await self.calendar.get_today_events()
+            events_text = ""
+            if today_events:
+                events_text = "\n".join(
+                    f"- {e.start.strftime('%H:%M') if not e.all_day else '終日'}: {e.summary}"
+                    for e in today_events
+                )
+
+            # 5. コーチングプロンプトを構築
+            prompt = self._build_coaching_prompt(
+                phase_info=phase_info,
+                coaching_context=coaching_context,
+                recent_reports=reports_text,
+                today_events=events_text,
+            )
+
+            # 6. Claude APIでメッセージ生成
+            response = self.claude.client.messages.create(
+                model=self.claude.model,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            message = response.content[0].text
+
+            # 7. Discordに送信
+            success = await self.discord.send_to_channel(
+                self.settings.discord_channel_coaching,
+                message,
+            )
+
+            if success:
+                logger.info("Daily coaching notification sent successfully")
+                state = self._load_state()
+                coaching = state.setdefault("coaching", {})
+                coaching["last_sent"] = datetime.now(
+                    ZoneInfo(self.settings.timezone)
+                ).isoformat()
+                self._save_state(state)
+            else:
+                raise Exception("Failed to send coaching message to Discord")
+
+        except Exception as e:
+            logger.error("Daily coaching notification failed", error=str(e))
+            await self.discord.send_error_notification(
+                e,
+                context="デイリーコーチング通知",
+            )
+
+    async def _handle_daily_report(self, message: str) -> str:
+        """日報を処理してフィードバックを返す"""
+        logger.info("Processing daily report", message_length=len(message))
+
+        now = datetime.now(ZoneInfo(self.settings.timezone))
+        report_date = now.date().isoformat()
+
+        # 【日報】タグの後のテキストを取得
+        report_content = message.split("【日報】", 1)[-1].strip()
+        if not report_content:
+            return (
+                f"旦那様、執事の{self.name}でございます。\n"
+                "日報の内容が空でございます。\n"
+                "以下のテンプレートをご参考にどうぞ。\n\n"
+                "```\n"
+                "@黒田【日報】\n"
+                "睡眠: ○時間\n"
+                "体調: ○/10\n"
+                "一人時間: ○時間\n"
+                "やったこと: 自由記述\n"
+                "気づき: 任意\n"
+                "```"
+            )
+
+        # 構造化パース
+        parsed = self._parse_daily_report(report_content)
+
+        # 日報を構造化保存
+        self._save_daily_report(report_date, report_content, parsed)
+
+        # 直近の日報でトレンドを取得
+        recent_reports = self._get_recent_reports(days=7)
+        trend_text = self._format_reports_for_prompt(recent_reports)
+
+        # Phase情報を取得
+        phase_info = self._get_coaching_phase_info()
+
+        # パースされた数値のサマリー
+        parsed_summary = ""
+        if "sleep_hours" in parsed:
+            parsed_summary += f"- 睡眠: {parsed['sleep_hours']}時間\n"
+        if "condition" in parsed:
+            parsed_summary += f"- 体調: {parsed['condition']}/10\n"
+        if "alone_hours" in parsed:
+            parsed_summary += f"- 一人時間: {parsed['alone_hours']}時間\n"
+
+        # フィードバック生成用プロンプト
+        prompt = f"""あなたは日下家に仕える執事「{self.name}」であり、
+旦那様の育休コーチです。
+
+旦那様から本日の日報が提出されました。
+コーチとして、温かく、建設的なフィードバックを返してください。
+
+## 現在の位置
+- Week {phase_info['week_number']} / Phase {phase_info['phase']}: {phase_info['phase_name']}
+- Phase目的: {phase_info['phase_purpose']}
+
+## 本日の日報（原文）
+{report_content}
+
+## パースされた数値
+{parsed_summary if parsed_summary else "（数値データなし — 自由記述形式）"}
+
+## 直近の日報トレンド
+{trend_text if trend_text else "本日が初回の日報です。"}
+
+## フィードバックルール
+1. 日報の提出自体を称える
+2. 数値データがある場合はトレンドに言及（睡眠8時間以上を推奨、等）
+3. 活動内容に対する具体的なコメント
+4. Phase目標との関連性を指摘（該当する場合）
+5. 改善提案は控えめに、ポジティブに
+6. 執事口調（丁寧で温かみのある言葉遣い）
+7. 絵文字は使用しない
+8. 200-300文字程度に収める
+"""
+
+        try:
+            response = self.claude.client.messages.create(
+                model=self.claude.model,
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error("Failed to generate daily report feedback", error=str(e))
+            return (
+                f"旦那様、執事の{self.name}でございます。\n"
+                f"本日の日報、確かに承りました。\n"
+                f"（{report_date}分として記録いたしました）"
+            )
+
     async def morning_notification(self) -> None:
         """朝の予定通知を実行"""
         logger.info("Starting morning notification")
@@ -488,6 +926,13 @@ class Butler:
         )
 
         try:
+            # 日報検出（コーチングチャンネルで「【日報】」を含むメッセージ）
+            if (
+                channel == self.settings.discord_channel_coaching
+                and "【日報】" in message
+            ):
+                return await self._handle_daily_report(message)
+
             # 家族情報コンテキストを取得
             family_context = self._get_family_context()
 

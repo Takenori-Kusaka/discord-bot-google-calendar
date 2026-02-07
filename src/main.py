@@ -200,6 +200,9 @@ async def main():
         life_info_job=butler.weekly_life_info_notification,
         life_info_day=getattr(settings, "life_info_day", "mon"),
         life_info_hour=getattr(settings, "life_info_hour", 9),
+        coaching_job=butler.daily_coaching_notification,
+        coaching_hour=settings.coaching_notification_hour,
+        coaching_minute=settings.coaching_notification_minute,
         timezone=settings.timezone,
         scheduler=scheduler,
     )
