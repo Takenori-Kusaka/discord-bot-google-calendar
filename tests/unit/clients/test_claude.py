@@ -302,6 +302,89 @@ class TestGenerateEventRecommendation(TestClaudeClient):
         assert "黒田" in result
 
 
+class TestGenerateLifeInfoSummary(TestClaudeClient):
+    """generate_life_info_summaryメソッドのテスト"""
+
+    @pytest.fixture
+    def sample_law_items(self):
+        """サンプル法令情報"""
+        return [
+            {
+                "title": "健康保険法",
+                "description": "法令番号: 大正十一年法律第七十号",
+                "source": "e-Gov法令検索",
+                "source_url": "https://laws.e-gov.go.jp/law/322AC0000000070",
+            },
+            {
+                "title": "予防接種法",
+                "description": "法令番号: 昭和二十三年法律第六十八号",
+                "source": "e-Gov法令検索",
+                "source_url": "https://laws.e-gov.go.jp/law/323AC0000000068",
+            },
+        ]
+
+    @pytest.mark.asyncio
+    async def test_generate_summary_success(
+        self, claude_client, mock_anthropic_client, sample_law_items
+    ):
+        """要約生成成功"""
+        mock_result = [
+            {
+                "title": "健康保険法",
+                "impact_level": "high",
+                "summary": "出産育児一時金の支給額引き上げなど、医療費に関わる改正。",
+                "family_relevance": "育休中の保険料免除に直結します。",
+                "requires_action": False,
+            },
+            {
+                "title": "予防接種法",
+                "impact_level": "medium",
+                "summary": "定期接種の対象ワクチン見直し。",
+                "family_relevance": "お嬢様の接種スケジュールに影響する可能性。",
+                "requires_action": False,
+            },
+        ]
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text=json.dumps(mock_result, ensure_ascii=False))]
+        mock_anthropic_client.messages.create.return_value = mock_response
+
+        result = await claude_client.generate_life_info_summary(sample_law_items)
+
+        assert len(result) == 2
+        assert result[0]["title"] == "健康保険法"
+        assert result[0]["impact_level"] == "high"
+        assert result[1]["title"] == "予防接種法"
+        assert result[1]["impact_level"] == "medium"
+
+    @pytest.mark.asyncio
+    async def test_generate_summary_empty_input(self, claude_client):
+        """空リストの場合は空を返す"""
+        result = await claude_client.generate_life_info_summary([])
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_generate_summary_api_error(
+        self, claude_client, mock_anthropic_client, sample_law_items
+    ):
+        """APIエラー時は空リストを返す"""
+        mock_anthropic_client.messages.create.side_effect = Exception("API Error")
+
+        result = await claude_client.generate_life_info_summary(sample_law_items)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_generate_summary_invalid_json(
+        self, claude_client, mock_anthropic_client, sample_law_items
+    ):
+        """不正なJSON応答の場合は空リストを返す"""
+        mock_response = MagicMock()
+        mock_response.content = [MagicMock(text="要約結果です")]
+        mock_anthropic_client.messages.create.return_value = mock_response
+
+        result = await claude_client.generate_life_info_summary(sample_law_items)
+        assert result == []
+
+
 class TestConversationHistory(TestClaudeClient):
     """会話履歴管理のテスト"""
 

@@ -897,17 +897,24 @@ class Butler:
                 logger.info("No life info items to notify")
                 return
 
-            # 2. 通知メッセージを生成
+            # 2. Claude APIで要約・影響度判定
+            life_info_list = await self._enrich_life_info_with_claude(life_info_list)
+
+            # 3. impact_level でソート（high → medium → low）
+            impact_order = {"high": 0, "medium": 1, "low": 2, "": 3}
+            life_info_list.sort(key=lambda x: impact_order.get(x.impact_level, 3))
+
+            # 4. 通知メッセージを生成
             info_section = self.life_info.format_for_weekly_notification(life_info_list)
 
-            # 3. 執事口調の導入文を生成
+            # 5. 執事口調の導入文を生成
             intro = (
                 f"旦那様、執事の{self.name}でございます。\n"
                 "今週の生活に関わる重要な情報をお届けいたします。\n"
             )
             message = intro + "\n" + info_section
 
-            # 4. Discordに送信（生活影響情報用チャンネル）
+            # 6. Discordに送信（生活影響情報用チャンネル）
             # 設定にチャンネルがなければ地域チャンネルに送信
             channel = (
                 getattr(self.settings, "discord_channel_life_info", None)
@@ -928,6 +935,49 @@ class Butler:
                 e,
                 context="週次生活影響情報通知",
             )
+
+    async def _enrich_life_info_with_claude(
+        self, life_info_list: list
+    ) -> list:
+        """Claude APIで法令情報に要約・影響度を付与
+
+        Args:
+            life_info_list: 生の法令情報リスト
+
+        Returns:
+            list: 要約・影響度が付与された法令情報リスト
+        """
+        # Claude APIに渡すデータを準備
+        law_items = [
+            {
+                "title": info.title,
+                "description": info.description,
+                "source": info.source,
+                "source_url": info.source_url,
+            }
+            for info in life_info_list
+        ]
+
+        # Claude APIで要約・影響度判定
+        summaries = await self.claude.generate_life_info_summary(law_items)
+
+        if not summaries:
+            logger.warning("Claude summary returned empty, using original data")
+            return life_info_list
+
+        # 要約結果を LifeImpactInfo に反映
+        summary_map = {s["title"]: s for s in summaries if "title" in s}
+
+        for info in life_info_list:
+            summary = summary_map.get(info.title)
+            if summary:
+                info.description = summary.get("summary", info.description)
+                info.impact_level = summary.get("impact_level", "")
+                info.family_relevance = summary.get("family_relevance", "")
+                if summary.get("requires_action"):
+                    info.requires_action = True
+
+        return life_info_list
 
     async def handle_message(
         self, message: str, channel: str, images: list | None = None

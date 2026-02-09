@@ -67,6 +67,13 @@ FAMILY_KEYWORDS = [
 ]
 
 
+IMPACT_LABELS = {
+    "high": "🔴 重要",
+    "medium": "🟡 参考",
+    "low": "🟢 参考程度",
+}
+
+
 @dataclass
 class LifeImpactInfo:
     """生活影響情報"""
@@ -79,12 +86,44 @@ class LifeImpactInfo:
     effective_date: Optional[datetime] = None
     deadline: Optional[datetime] = None
     requires_action: bool = False
+    impact_level: str = ""  # "high" / "medium" / "low" (Claude判定後に設定)
+    family_relevance: str = ""  # 家族への影響説明 (Claude判定後に設定)
     fetched_at: datetime = field(
         default_factory=lambda: datetime.now(ZoneInfo("Asia/Tokyo"))
     )
 
     def format_for_notification(self) -> str:
         """通知用にフォーマット"""
+        # impact_level がある場合は新フォーマット
+        if self.impact_level:
+            return self._format_enriched()
+        # フォールバック: 従来フォーマット
+        return self._format_basic()
+
+    def _format_enriched(self) -> str:
+        """Claude要約付きの新フォーマット"""
+        impact_label = IMPACT_LABELS.get(self.impact_level, "🟢 参考程度")
+        lines = [f"{impact_label} | **{self.title}**"]
+
+        if self.description:
+            lines.append(f"  {self.description}")
+
+        if self.family_relevance:
+            lines.append(f"  👨‍👩‍👧‍👦 {self.family_relevance}")
+
+        if self.deadline:
+            lines.append(f"  ⏰ 期限: {self.deadline.strftime('%Y年%m月%d日')}")
+
+        if self.requires_action:
+            lines.append("  📝 手続きが必要です")
+
+        if self.source_url and self.source_url != "https://laws.e-gov.go.jp/":
+            lines.append(f"  ▶ 詳細: {self.source_url}")
+
+        return "\n".join(lines)
+
+    def _format_basic(self) -> str:
+        """従来フォーマット（フォールバック用）"""
         trust_label = TRUST_LABELS.get(self.trust_level, "")
         lines = [f"{trust_label} **{self.title}**", f"  {self.description}"]
 
@@ -393,7 +432,7 @@ class LifeInfoClient:
 
         lines.append("")
         lines.append(
-            "※ 詳細は各公式サイトでご確認ください。情報の正確性は保証できません。"
+            "※ AIの知識に基づく要約です。最新の改正内容は各公式サイトでご確認ください。"
         )
 
         return "\n".join(lines)

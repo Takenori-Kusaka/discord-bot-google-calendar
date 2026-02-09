@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from src.butler import Butler
 from src.clients.calendar import CalendarEvent
+from src.clients.life_info import LifeImpactInfo, TrustLevel
 from src.clients.weather import WeatherInfo
 
 
@@ -267,11 +268,27 @@ class TestWeeklyLifeInfoNotification:
         # Arrange
         mock_settings.discord_channel_region = "地域のこと"
         mock_life_info_client.get_all_life_info.return_value = [
-            {"title": "児童手当増額", "description": "来月から増額"}
+            LifeImpactInfo(
+                title="児童手当増額",
+                description="来月から増額",
+                source="e-Gov法令検索",
+                source_url="https://laws.e-gov.go.jp/",
+                trust_level=TrustLevel.OFFICIAL_EGOV,
+            )
         ]
         mock_life_info_client.format_for_weekly_notification.return_value = (
             "【生活影響情報】児童手当が増額されます"
         )
+        # Claude APIの要約結果をモック
+        mock_claude_client.generate_life_info_summary.return_value = [
+            {
+                "title": "児童手当増額",
+                "impact_level": "high",
+                "summary": "児童手当が増額されます。",
+                "family_relevance": "お子様のいるご家庭に直接影響します。",
+                "requires_action": False,
+            }
+        ]
 
         with patch("src.butler.Path.exists", return_value=False):
             butler = Butler(

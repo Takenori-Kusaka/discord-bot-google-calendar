@@ -421,6 +421,89 @@ class ClaudeClient:
 
 詳細はリンク先をご確認くださいませ。"""
 
+    async def generate_life_info_summary(
+        self,
+        law_items: list[dict],
+    ) -> list[dict]:
+        """法令情報をClaude APIで要約・影響度判定
+
+        Args:
+            law_items: 法令情報のリスト（title, description, source_url等）
+
+        Returns:
+            list[dict]: 要約・影響度判定結果
+        """
+        if not law_items:
+            return []
+
+        laws_json = json.dumps(law_items, ensure_ascii=False, indent=2)
+
+        prompt = f"""以下の法令・制度リストについて、家族への影響度を判定し要約してください。
+
+## 家族構成
+- 旦那様（35歳、IT企業勤務、育休中 2026年1月26日〜9月18日）
+- 奥様（34歳）
+- お嬢様（4歳、保育園）
+- 坊ちゃま（0歳）
+- 京都府木津川市在住
+
+## 法令・制度リスト
+{laws_json}
+
+## 判定ルール
+1. 各法令について、この家族の日常生活に関係する内容を要約してください
+2. 最近の主な改正ポイントがあれば含めてください
+3. impact_level は以下の基準で判定:
+   - "high": 手続きが必要、金銭的影響がある、期限がある
+   - "medium": 知っておくと役立つ、今後影響する可能性がある
+   - "low": 直接的な影響は小さい
+4. requires_action: 何か手続きや対応が必要な場合はtrue
+
+## 出力形式
+必ずJSON配列のみを出力してください。説明文は不要です。
+
+```json
+[
+  {{
+    "title": "法令名（入力と同じ）",
+    "impact_level": "high|medium|low",
+    "summary": "この法令の概要と最近の改正ポイント（2-3文、100文字程度）",
+    "family_relevance": "この家族にどう関係するか（1文、50文字程度）",
+    "requires_action": false
+  }}
+]
+```"""
+
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            content = response.content[0].text
+            logger.debug(f"Life info summary response (first 500 chars): {content[:500]}")
+
+            # JSON部分を抽出
+            start_idx = content.find("[")
+            end_idx = content.rfind("]") + 1
+            if start_idx >= 0 and end_idx > start_idx:
+                json_str = content[start_idx:end_idx]
+                try:
+                    results = json.loads(json_str)
+                    logger.info(f"Generated life info summary for {len(results)} items")
+                    return results
+                except json.JSONDecodeError as je:
+                    logger.error(f"JSON parse error: {je}, json_str={json_str[:200]}")
+                    return []
+            else:
+                logger.warning(f"No JSON array found in life info summary response")
+                return []
+
+        except Exception as e:
+            logger.error(f"Failed to generate life info summary: {e}", exc_info=True)
+            return []
+
     async def chat(
         self,
         message: str,
