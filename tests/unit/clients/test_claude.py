@@ -345,7 +345,9 @@ class TestGenerateLifeInfoSummary(TestClaudeClient):
             },
         ]
         mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps(mock_result, ensure_ascii=False))]
+        mock_response.content = [
+            MagicMock(text=json.dumps(mock_result, ensure_ascii=False))
+        ]
         mock_anthropic_client.messages.create.return_value = mock_response
 
         result = await claude_client.generate_life_info_summary(sample_law_items)

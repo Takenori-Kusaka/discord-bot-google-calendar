@@ -482,7 +482,9 @@ class ClaudeClient:
             )
 
             content = response.content[0].text
-            logger.debug(f"Life info summary response (first 500 chars): {content[:500]}")
+            logger.debug(
+                f"Life info summary response (first 500 chars): {content[:500]}"
+            )
 
             # JSON部分を抽出
             start_idx = content.find("[")

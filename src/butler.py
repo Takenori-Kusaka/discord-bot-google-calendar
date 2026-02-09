@@ -936,9 +936,7 @@ class Butler:
                 context="週次生活影響情報通知",
             )
 
-    async def _enrich_life_info_with_claude(
-        self, life_info_list: list
-    ) -> list:
+    async def _enrich_life_info_with_claude(self, life_info_list: list) -> list:
         """Claude APIで法令情報に要約・影響度を付与
 
         Args:
