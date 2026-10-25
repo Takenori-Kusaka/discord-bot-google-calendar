@@ -165,6 +165,15 @@ def git_pull(discard_local: bool) -> None:
 
     log("git fetch origin")
     git("fetch", "origin")
+    if discard_local:
+        # origin/main に含まれるのに未追跡のファイル（過去に scp で配置されたもの）が
+        # あると "would be overwritten by merge" で止まるので、それだけ削除する
+        untracked = set(git("ls-files", "--others", "--exclude-standard").split())
+        in_main = set(git("ls-tree", "-r", "--name-only", "origin/main").split())
+        conflicts = sorted(untracked & in_main)
+        if conflicts:
+            log("衝突する未追跡ファイルを削除: " + ", ".join(conflicts))
+            git("clean", "-f", "--", *conflicts)
     incoming = git("log", "--oneline", "HEAD..origin/main")
     if incoming:
         log("取り込むコミット:\n" + incoming)

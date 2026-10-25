@@ -123,6 +123,23 @@ def show_incoming() -> bool:
     return False
 
 
+def remove_untracked_conflicts() -> None:
+    """origin/main に含まれるのにサーバーで未追跡のファイルを削除する
+
+    かつて scp で配置されたファイルが残っていると
+    "untracked working tree files would be overwritten by merge" で pull が止まるため。
+    """
+    untracked = set(remote_git("ls-files --others --exclude-standard").stdout.split())
+    tracked_in_main = set(
+        remote_git("ls-tree -r --name-only origin/main").stdout.split()
+    )
+    conflicts = sorted(untracked & tracked_in_main)
+    if not conflicts:
+        return
+    log("origin/main と衝突する未追跡ファイルを削除します: " + ", ".join(conflicts))
+    remote_git("clean -f -- " + " ".join(f'"{c}"' for c in conflicts))
+
+
 def remote_pull(discard_local: bool) -> None:
     dirty = remote_git("status --porcelain --untracked-files=no").stdout.strip()
     if dirty:
@@ -134,6 +151,8 @@ def remote_pull(discard_local: bool) -> None:
             )
         log("サーバー側のローカル変更を破棄します")
         remote_git("checkout -- .")
+    if discard_local:
+        remove_untracked_conflicts()
     log("サーバー: git pull --ff-only")
     res = remote_git(
         "pull --ff-only --no-recurse-submodules origin main", capture=False
