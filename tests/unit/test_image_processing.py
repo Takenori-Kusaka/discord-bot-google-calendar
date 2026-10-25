@@ -191,7 +191,9 @@ class TestRunButlerAgentWithImages:
 
             # HumanMessageの内容を確認
             if captured_messages:
-                human_msg = captured_messages[0]
+                human_msg = next(
+                    m for m in captured_messages if isinstance(m, HumanMessage)
+                )
                 assert isinstance(human_msg, HumanMessage)
                 # コンテンツがリストであること（マルチモーダル）
                 assert isinstance(human_msg.content, list)
@@ -238,7 +240,9 @@ class TestRunButlerAgentWithImages:
 
             # HumanMessageの内容を確認
             if captured_messages:
-                human_msg = captured_messages[0]
+                human_msg = next(
+                    m for m in captured_messages if isinstance(m, HumanMessage)
+                )
                 assert isinstance(human_msg.content, list)
                 # イベント抽出ヒントが追加されていること
                 text_contents = [
@@ -337,7 +341,9 @@ class TestRunButlerAgentWithImages:
 
             # 2つの画像が含まれていること（Anthropicネイティブ形式: type="image"）
             if captured_messages:
-                human_msg = captured_messages[0]
+                human_msg = next(
+                    m for m in captured_messages if isinstance(m, HumanMessage)
+                )
                 image_contents = [
                     c for c in human_msg.content if c.get("type") == "image"
                 ]

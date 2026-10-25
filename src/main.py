@@ -190,22 +190,28 @@ async def main():
     reminder_client.set_notification_callback(reminder_notification_callback)
 
     # スケジューラにジョブを追加（Butlerのメソッドを使用）
-    setup_scheduler(
-        morning_job=butler.morning_notification,
-        morning_hour=settings.morning_notification_hour,
-        morning_minute=settings.morning_notification_minute,
-        weekly_job=butler.weekly_event_notification if event_search_client else None,
-        weekly_day=settings.weekly_event_day,
-        weekly_hour=settings.weekly_event_hour,
-        life_info_job=butler.weekly_life_info_notification,
-        life_info_day=getattr(settings, "life_info_day", "mon"),
-        life_info_hour=getattr(settings, "life_info_hour", 9),
-        coaching_job=butler.daily_coaching_notification,
-        coaching_hour=settings.coaching_notification_hour,
-        coaching_minute=settings.coaching_notification_minute,
-        timezone=settings.timezone,
-        scheduler=scheduler,
-    )
+    # ENABLE_SCHEDULED_JOBS=false でコスト削減のため全定期ジョブを停止できる
+    if settings.enable_scheduled_jobs:
+        setup_scheduler(
+            morning_job=butler.morning_notification,
+            morning_hour=settings.morning_notification_hour,
+            morning_minute=settings.morning_notification_minute,
+            weekly_job=(
+                butler.weekly_event_notification if event_search_client else None
+            ),
+            weekly_day=settings.weekly_event_day,
+            weekly_hour=settings.weekly_event_hour,
+            life_info_job=butler.weekly_life_info_notification,
+            life_info_day=getattr(settings, "life_info_day", "mon"),
+            life_info_hour=getattr(settings, "life_info_hour", 9),
+            coaching_job=butler.daily_coaching_notification,
+            coaching_hour=settings.coaching_notification_hour,
+            coaching_minute=settings.coaching_notification_minute,
+            timezone=settings.timezone,
+            scheduler=scheduler,
+        )
+    else:
+        logger.info("Scheduled jobs DISABLED (ENABLE_SCHEDULED_JOBS=false)")
 
     # シグナルハンドラ設定
     loop = asyncio.get_event_loop()

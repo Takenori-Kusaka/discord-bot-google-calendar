@@ -29,7 +29,7 @@ class TestClaudeClient:
             mock_class.return_value = mock_anthropic_client
             client = ClaudeClient(
                 api_key="test-api-key",
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-5-5",
             )
             client.client = mock_anthropic_client
             return client

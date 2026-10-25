@@ -84,7 +84,7 @@ class TestCompileButlerGraph:
         with patch("src.agents.graph.ChatAnthropic", return_value=mock_llm):
             graph = compile_butler_graph(
                 tool_executor=MagicMock(),
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-5-5",
             )
 
             # グラフが作成されていることを確認

@@ -7,6 +7,10 @@ from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# 既定のClaudeモデル。CLAUDE_MODEL 環境変数で上書き可能。
+# モデルの提供終了(404 not_found)時はここを更新する。
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5"
+
 
 class Settings(BaseSettings):
     """アプリケーション設定"""
@@ -41,7 +45,7 @@ class Settings(BaseSettings):
     # Claude API設定
     anthropic_api_key: str = Field(..., description="Anthropic APIキー")
     claude_model: str = Field(
-        default="claude-sonnet-4-20250514", description="Claudeモデル名"
+        default=DEFAULT_CLAUDE_MODEL, description="Claudeモデル名"
     )
 
     # スケジュール設定
@@ -91,6 +95,12 @@ class Settings(BaseSettings):
     # エージェント設定
     use_langgraph: bool = Field(
         default=True, description="LangGraphエージェントを使用するかどうか"
+    )
+
+    # 定期実行ジョブ（朝の通知・週次イベント・法令情報・コーチング）
+    # コスト削減のため停止したい場合は ENABLE_SCHEDULED_JOBS=false
+    enable_scheduled_jobs: bool = Field(
+        default=True, description="定期実行ジョブを有効にするかどうか"
     )
 
 

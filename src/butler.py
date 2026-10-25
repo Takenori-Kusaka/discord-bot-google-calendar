@@ -16,7 +16,7 @@ import yaml
 from .agents.graph import run_butler_agent
 from .agents.tools import ToolExecutor, get_tool_definitions
 from .clients.calendar import CalendarEvent, GoogleCalendarClient
-from .clients.claude import ClaudeClient
+from .clients.claude import ClaudeClient, extract_text
 from .clients.discord import DiscordClient
 from .clients.event_search import EventSearchClient
 from .clients.expense import ExpenseClient
@@ -624,7 +624,7 @@ class Butler:
                 max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
-            message = response.content[0].text
+            message = extract_text(response)
 
             # 7. Discordに送信
             success = await self.discord.send_to_channel(
@@ -733,7 +733,7 @@ class Butler:
                 max_tokens=1024,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return response.content[0].text
+            return extract_text(response)
         except Exception as e:
             logger.error("Failed to generate daily report feedback", error=str(e))
             return (
@@ -1018,6 +1018,7 @@ class Butler:
                     butler_name=self.name,
                     user_context={"family_context": family_context},
                     images=images,
+                    model=self.claude.model,
                 )
             else:
                 # 既存のClaudeClient.chat_with_toolsを使用

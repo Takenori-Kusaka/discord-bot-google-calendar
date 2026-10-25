@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 import anthropic
 
+from ..config.settings import DEFAULT_CLAUDE_MODEL
 from ..utils.logger import get_logger
 from .calendar import CalendarEvent
 
@@ -16,10 +17,33 @@ logger = get_logger(__name__)
 MAX_CONVERSATION_HISTORY = 10
 
 
+# テキストとして扱わないコンテンツブロック種別
+_NON_TEXT_BLOCK_TYPES = frozenset(
+    {"thinking", "redacted_thinking", "tool_use", "server_tool_use", "tool_result"}
+)
+
+
+def extract_text(response: Any) -> str:
+    """Messages APIレスポンスからテキストブロックのみを連結して返す
+
+    Claude Sonnet 5.5以降はadaptive thinkingが既定で有効なため、
+    content[0]がthinkingブロックになることがある。
+    ``response.content[0].text`` を直接参照してはいけない。
+    """
+    parts: list[str] = []
+    for block in getattr(response, "content", None) or []:
+        if getattr(block, "type", None) in _NON_TEXT_BLOCK_TYPES:
+            continue
+        text = getattr(block, "text", None)
+        if isinstance(text, str):
+            parts.append(text)
+    return "".join(parts)
+
+
 class ClaudeClient:
     """Claude API クライアント"""
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str, model: str = DEFAULT_CLAUDE_MODEL):
         """初期化
 
         Args:
@@ -129,7 +153,7 @@ class ClaudeClient:
             )
 
             # レスポンスからインデックスリストを抽出
-            content = response.content[0].text
+            content = extract_text(response)
             # JSON部分を抽出
             start_idx = content.find("[")
             end_idx = content.rfind("]") + 1
@@ -212,7 +236,7 @@ class ClaudeClient:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            message = response.content[0].text
+            message = extract_text(response)
             logger.info("Generated butler message", length=len(message))
             return message
 
@@ -320,7 +344,7 @@ class ClaudeClient:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            content = response.content[0].text
+            content = extract_text(response)
             logger.debug(f"Claude response (first 500 chars): {content[:500]}")
 
             # JSON部分を抽出
@@ -403,7 +427,7 @@ class ClaudeClient:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            message = response.content[0].text
+            message = extract_text(response)
             logger.info("Generated event recommendation", length=len(message))
             return message
 
@@ -481,7 +505,7 @@ class ClaudeClient:
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            content = response.content[0].text
+            content = extract_text(response)
             logger.debug(
                 f"Life info summary response (first 500 chars): {content[:500]}"
             )
@@ -573,7 +597,7 @@ class ClaudeClient:
                 messages=messages,
             )
 
-            assistant_message = response.content[0].text
+            assistant_message = extract_text(response)
 
             # 会話履歴に追加
             self._add_to_history(channel, "user", message)

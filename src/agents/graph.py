@@ -15,15 +15,38 @@ from datetime import datetime
 from typing import Annotated, Any, Literal, TypedDict
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import (
+    AIMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 from langchain_core.tools import tool
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
+from ..config.settings import DEFAULT_CLAUDE_MODEL
 from ..utils.logger import get_logger
 from .tools import ToolExecutor, get_tool_definitions
 
 logger = get_logger(__name__)
+
+
+def message_text(content: Any) -> str:
+    """AIMessage.content からテキストのみを取り出す
+
+    Claude Sonnet 5.5以降はadaptive thinkingが既定で有効なため、
+    content が [thinkingブロック, textブロック, ...] のリストになることがある。
+    """
+    if isinstance(content, str):
+        return content
+    parts = []
+    for block in content or []:
+        if isinstance(block, str):
+            parts.append(block)
+        elif isinstance(block, dict) and block.get("type") == "text":
+            parts.append(block.get("text", ""))
+    return "".join(parts)
 
 
 # =============================================================================
@@ -59,23 +82,26 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 
 ## あなたの役割
 - 日下家の生活を総合的にサポートする執事
-- 丁寧で品のある執事口調で応答
 - 家族の喜びを自分の喜びとするホスピタリティ
-- **アクションが必要な場合は必ずツールを使用して実行する**
+- アクションが必要な場合はツールを使用して実行する
 
-## 重要な行動原則【必読】
-あなたは情報を提供するだけでなく、**実際にアクションを起こす**ことが求められます。
-- 「〜できます」「〜しましょうか？」と提案するのではなく、**実際にツールを呼び出して実行してください**
+## 口調（すべての応答で守ること）
+応答は常に、丁寧で品のある執事口調で書いてください。
+一言の返事、雑談、ツール結果の報告、画像の説明、エラーの説明であっても崩さないでください。
+- 文末は「〜でございます」「〜いたします」「〜くださいませ」「〜存じます」などを使う
+- 承る際は「かしこまりました」、断りや依頼は「恐れ入りますが」で始める
+- 旦那様・奥様・お嬢様・坊ちゃまと呼ぶ
+- 例: 「かしこまりました。ただいまお調べいたします。」「恐れ入りますが、〜でございます。」「どうぞご安心くださいませ。」
+- 「です・ます」だけの一般的な敬語や、くだけた表現（「がんばります」「〜ですね！」など）は使わない
+
+## 行動原則
+あなたは情報を提供するだけでなく、実際にアクションを起こすことが求められます。
+- 「〜できます」「〜しましょうか？」と提案するのではなく、ツールを呼び出して実行してください
 - カレンダー登録が必要 → create_calendar_event を呼び出す
 - 情報検索が必要 → 適切な検索ツールを呼び出す
 - リマインダー設定が必要 → set_reminder を呼び出す
-
-**提案ではなく、実行してください。ツールを呼び出さずに「〜できます」と言うのは禁止です。**
-
-## 口調の例
-- 「かしこまりました。ただいまお調べいたします。」
-- 「恐れ入りますが、〜でございます。」
-- 「どうぞご安心くださいませ。」
+- ツールで実行できることを、実行せずに提案だけで終えないでください
+- ただし、ユーザーが「登録不要」「見るだけ」と明示した場合や、明らかに雑談の場合はツールを使わず応答してください
 
 ## 家族構成
 - 旦那様（35歳、男性）
@@ -150,11 +176,12 @@ BUTLER_SYSTEM_PROMPT = """あなたは日下家に仕える執事「{butler_name
 写真の説明、質問への回答、内容の説明など、柔軟に対応してください。
 
 ## 応答ルール
-1. ツールで取得した情報を基に応答
-2. 簡潔に応答（300文字程度）
+1. ツールで取得した情報を基に応答する。推測で補わない
+2. 簡潔に応答する（300文字程度。箇条書きは必要なときだけ）
 3. 絵文字は使用しない
 4. 不明な点は正直に「存じ上げません」と答える
-5. 今日は{today}です
+5. 自己紹介や署名（「執事の{butler_name}でございます」）は、求められたときか初回の挨拶のときだけにする
+6. 今日は{today}です
 """
 
 
@@ -669,7 +696,7 @@ class ButlerGraphConfig:
         self,
         tool_executor: ToolExecutor | None = None,
         butler_name: str = "黒田",
-        model: str = "claude-sonnet-4-20250514",
+        model: str = DEFAULT_CLAUDE_MODEL,
         max_retries: int = 2,
     ):
         self.tool_executor = tool_executor
@@ -741,9 +768,10 @@ def agent_node(state: AgentState) -> dict:
 
     try:
         # Claude APIを呼び出し
+        # NOTE: ChatAnthropic は config["configurable"]["system_message"] を解釈しない。
+        # システムプロンプトは SystemMessage としてメッセージ列の先頭に置く必要がある。
         response = config.llm_with_tools.invoke(
-            state["messages"],
-            config={"configurable": {"system_message": system_prompt}},
+            [SystemMessage(content=system_prompt), *state["messages"]],
         )
 
         logger.info(
@@ -833,7 +861,7 @@ def validation_node(state: AgentState) -> dict:
         logger.warning("No AI message found for validation")
         return {"error": None}
 
-    content = last_message.content
+    content = message_text(last_message.content)
 
     # 簡易的な執事口調チェック
     butler_indicators = [
@@ -970,7 +998,7 @@ def create_butler_graph() -> StateGraph:
 def compile_butler_graph(
     tool_executor: ToolExecutor | None = None,
     butler_name: str = "黒田",
-    model: str = "claude-sonnet-4-20250514",
+    model: str = DEFAULT_CLAUDE_MODEL,
 ):
     """グラフをコンパイルして実行可能にする
 
@@ -1051,6 +1079,7 @@ async def run_butler_agent(
     butler_name: str = "黒田",
     user_context: dict[str, Any] | None = None,
     images: list[dict] | None = None,
+    model: str | None = None,
 ) -> str:
     """執事エージェントを実行
 
@@ -1060,6 +1089,7 @@ async def run_butler_agent(
         butler_name: 執事の名前
         user_context: ユーザーコンテキスト
         images: 添付画像のリスト（base64エンコード済み）
+        model: 使用するClaudeモデル名（省略時は DEFAULT_CLAUDE_MODEL）
 
     Returns:
         str: 執事からの応答
@@ -1068,6 +1098,7 @@ async def run_butler_agent(
     graph = compile_butler_graph(
         tool_executor=tool_executor,
         butler_name=butler_name,
+        model=model or DEFAULT_CLAUDE_MODEL,
     )
 
     # メッセージ内容を構築
@@ -1133,8 +1164,8 @@ async def run_butler_agent(
 
     # 最後のAIメッセージを取得
     for msg in reversed(result["messages"]):
-        if isinstance(msg, AIMessage) and msg.content:
-            return msg.content
+        if isinstance(msg, AIMessage) and message_text(msg.content):
+            return message_text(msg.content)
 
     return "恐れ入ります、応答を生成できませんでした。"
 
